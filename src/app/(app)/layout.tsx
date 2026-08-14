@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <p className="text-base font-medium text-slate-900">XG Point of Sale</p>
             <p className="text-xs text-slate-500">Car accessories checkout</p>
           </div>
-          <Nav />
+          <Nav role={staff.role} />
         </div>
         <div className="flex items-center gap-4">
           <ClockButton initialShift={openShift} />

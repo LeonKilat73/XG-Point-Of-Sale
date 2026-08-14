@@ -3,19 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV_ITEMS = [
-  { href: "/checkout", label: "Checkout" },
-  { href: "/orders", label: "Orders" },
-  { href: "/reports", label: "Reports" },
-  { href: "/settings", label: "Settings" },
-];
-
-export function Nav() {
+export function Nav({ role }: { role: "cashier" | "manager" }) {
   const pathname = usePathname();
+
+  const items = [
+    { href: "/checkout", label: "Checkout" },
+    { href: "/orders", label: "Orders" },
+    { href: "/reports", label: "Reports" },
+    ...(role === "manager" ? [{ href: "/staff", label: "Staff" }] : []),
+    { href: "/settings", label: "Settings" },
+  ];
 
   return (
     <nav className="flex gap-1">
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const active = pathname.startsWith(item.href);
         return (
           <Link
