@@ -43,6 +43,17 @@ export async function lookupItemBySku(sku: string): Promise<InventoryItem | null
   return data.items?.[0] ?? null;
 }
 
+// The whole active catalog in one call, for client-side name/SKU/category
+// search in checkout -- inventory's catalog is small enough that fetching
+// it once per checkout-page load and filtering in the browser is simpler
+// and more responsive than a debounced server-side search endpoint. Stock
+// shown from this snapshot is advisory only; the actual sale is still
+// checked and enforced atomically by inventory at submit time.
+export async function fetchCatalog(): Promise<InventoryItem[]> {
+  const data = await inventoryFetch("/api/v1/items");
+  return data.items ?? [];
+}
+
 export type SaleLine = { itemId: string; quantity: number };
 
 // Atomic on inventory's side (fn_record_pos_sale) -- either every line posts
