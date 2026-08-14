@@ -27,10 +27,10 @@ function LoginForm() {
 
   return (
     <Card>
-      <h1 className="text-xl font-medium text-slate-900">
+      <h1 className="text-xl font-medium text-on-surface">
         {mode === "sign-in" ? "Sign in" : "Create the first manager account"}
       </h1>
-      <p className="mt-1 text-sm text-slate-500">XG Point of Sale</p>
+      <p className="mt-1 text-sm text-on-surface-variant">XG Point of Sale</p>
 
       {mode === "sign-in" ? (
         <form action={signInAction} className="mt-6 space-y-4">
@@ -69,7 +69,7 @@ function LoginForm() {
       <button
         type="button"
         onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
-        className="mt-4 text-sm text-slate-600 underline underline-offset-2 hover:text-slate-900"
+        className="mt-4 text-sm text-on-surface-variant underline underline-offset-2 hover:text-on-surface"
       >
         {mode === "sign-in"
           ? "First time setting this up? Create the manager account"
@@ -80,5 +80,5 @@ function LoginForm() {
 }
 
 function ErrorText({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-red-600">{children}</p>;
+  return <p className="text-sm text-error">{children}</p>;
 }

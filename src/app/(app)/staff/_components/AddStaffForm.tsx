@@ -7,7 +7,7 @@ import { TextField } from "@/components/ui/Field";
 
 const initialState: ActionState = { error: null };
 const selectClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-200";
+  "w-full rounded-md border border-outline bg-surface px-3.5 py-2.5 text-sm text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
 
 export function AddStaffForm() {
   const [state, formAction, pending] = useActionState(addStaffMember, initialState);
@@ -27,13 +27,13 @@ export function AddStaffForm() {
       <TextField label="Email" name="email" type="email" required />
       <TextField label="Temporary password" name="password" type="password" minLength={8} required />
       <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-slate-600">Role</span>
+        <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Role</span>
         <select name="role" defaultValue="cashier" className={selectClass}>
           <option value="cashier">Cashier</option>
           <option value="manager">Manager</option>
         </select>
       </label>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-error">{state.error}</p>}
       <Button type="submit" disabled={pending}>
         {pending ? "Adding…" : "Add staff member"}
       </Button>

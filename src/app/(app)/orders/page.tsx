@@ -14,8 +14,8 @@ export default async function OrdersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-medium text-slate-900">Orders</h1>
-      <p className="mt-1 text-sm text-slate-500">Recent sales. Voiding reverses the stock in inventory.</p>
+      <h1 className="text-2xl font-medium text-on-surface">Orders</h1>
+      <p className="mt-1 text-sm text-on-surface-variant">Recent sales. Voiding reverses the stock in inventory.</p>
 
       <div className="mt-6">
         <OrdersList orders={orders ?? []} />

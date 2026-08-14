@@ -1,6 +1,196 @@
 @import "tailwindcss";
 
+/* Same design tokens as the inventory app (E:\InventorySystem\src\app\globals.css)
+   -- QuickBooks-inspired green primary, light gray-green content background,
+   dark teal-green persistent header (POS has a top header instead of a
+   sidebar, but reuses the same "sidebar" token names/values so both apps
+   read as the same product family). Keep these two files in sync by hand
+   if the inventory palette ever changes. */
+:root {
+  --md-primary: #2ca01c;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #d7f0d1;
+  --md-on-primary-container: #0a3d05;
+
+  --md-secondary: #5e6b66;
+  --md-on-secondary: #ffffff;
+  --md-secondary-container: #dce8e3;
+  --md-on-secondary-container: #172420;
+
+  --md-tertiary: #1a73c4;
+  --md-on-tertiary: #ffffff;
+  --md-tertiary-container: #d5e6f9;
+  --md-on-tertiary-container: #062544;
+
+  --md-error: #c02020;
+  --md-on-error: #ffffff;
+  --md-error-container: #ffdad6;
+  --md-on-error-container: #410002;
+
+  --md-background: #f4f6f6;
+  --md-surface: #ffffff;
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #f9fafa;
+  --md-surface-container: #eef1f0;
+  --md-surface-container-high: #e4e8e7;
+  --md-surface-container-highest: #dbe0de;
+  --md-on-surface: #1a1c1b;
+  --md-on-surface-variant: #5e6b66;
+
+  --md-outline: #c7cfcd;
+  --md-outline-variant: #dde3e1;
+
+  --qb-sidebar-bg: #0d2e29;
+  --qb-sidebar-hover: #143d36;
+  --qb-sidebar-fg: #d7e4e1;
+  --qb-sidebar-fg-muted: #8aa39d;
+  --qb-sidebar-active: #1f5148;
+  --qb-sidebar-active-fg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --md-primary: #7fdb6a;
+    --md-on-primary: #0a3d05;
+    --md-primary-container: #1c5c11;
+    --md-on-primary-container: #d7f0d1;
+
+    --md-secondary: #b7c7c1;
+    --md-on-secondary: #263330;
+    --md-secondary-container: #33403c;
+    --md-on-secondary-container: #d7e4e0;
+
+    --md-tertiary: #9dcbfb;
+    --md-on-tertiary: #063056;
+    --md-tertiary-container: #12456f;
+    --md-on-tertiary-container: #d5e6f9;
+
+    --md-error: #ffb4ab;
+    --md-on-error: #690005;
+    --md-error-container: #93000a;
+    --md-on-error-container: #ffdad6;
+
+    --md-background: #171d1b;
+    --md-surface: #171d1b;
+    --md-surface-container-lowest: #101513;
+    --md-surface-container-low: #1c2321;
+    --md-surface-container: #212927;
+    --md-surface-container-high: #28312e;
+    --md-surface-container-highest: #303a36;
+    --md-on-surface: #e6ebe8;
+    --md-on-surface-variant: #a8b6b1;
+
+    --md-outline: #7c8b86;
+    --md-outline-variant: #37403d;
+
+    --qb-sidebar-bg: #0c211d;
+    --qb-sidebar-hover: #143028;
+    --qb-sidebar-fg: #d7e4e1;
+    --qb-sidebar-fg-muted: #86a099;
+    --qb-sidebar-active: #1f5148;
+    --qb-sidebar-active-fg: #ffffff;
+  }
+}
+
+:root[data-theme="dark"] {
+  --md-primary: #7fdb6a;
+  --md-on-primary: #0a3d05;
+  --md-primary-container: #1c5c11;
+  --md-on-primary-container: #d7f0d1;
+
+  --md-secondary: #b7c7c1;
+  --md-on-secondary: #263330;
+  --md-secondary-container: #33403c;
+  --md-on-secondary-container: #d7e4e0;
+
+  --md-tertiary: #9dcbfb;
+  --md-on-tertiary: #063056;
+  --md-tertiary-container: #12456f;
+  --md-on-tertiary-container: #d5e6f9;
+
+  --md-error: #ffb4ab;
+  --md-on-error: #690005;
+  --md-error-container: #93000a;
+  --md-on-error-container: #ffdad6;
+
+  --md-background: #171d1b;
+  --md-surface: #171d1b;
+  --md-surface-container-lowest: #101513;
+  --md-surface-container-low: #1c2321;
+  --md-surface-container: #212927;
+  --md-surface-container-high: #28312e;
+  --md-surface-container-highest: #303a36;
+  --md-on-surface: #e6ebe8;
+  --md-on-surface-variant: #a8b6b1;
+
+  --md-outline: #7c8b86;
+  --md-outline-variant: #37403d;
+
+  --qb-sidebar-bg: #0c211d;
+  --qb-sidebar-hover: #143028;
+  --qb-sidebar-fg: #d7e4e1;
+  --qb-sidebar-fg-muted: #86a099;
+  --qb-sidebar-active: #1f5148;
+  --qb-sidebar-active-fg: #ffffff;
+}
+
 @theme inline {
+  --color-primary: var(--md-primary);
+  --color-on-primary: var(--md-on-primary);
+  --color-primary-container: var(--md-primary-container);
+  --color-on-primary-container: var(--md-on-primary-container);
+
+  --color-secondary: var(--md-secondary);
+  --color-on-secondary: var(--md-on-secondary);
+  --color-secondary-container: var(--md-secondary-container);
+  --color-on-secondary-container: var(--md-on-secondary-container);
+
+  --color-tertiary: var(--md-tertiary);
+  --color-on-tertiary: var(--md-on-tertiary);
+  --color-tertiary-container: var(--md-tertiary-container);
+  --color-on-tertiary-container: var(--md-on-tertiary-container);
+
+  --color-error: var(--md-error);
+  --color-on-error: var(--md-on-error);
+  --color-error-container: var(--md-error-container);
+  --color-on-error-container: var(--md-on-error-container);
+
+  --color-background: var(--md-background);
+  --color-surface: var(--md-surface);
+  --color-surface-container-lowest: var(--md-surface-container-lowest);
+  --color-surface-container-low: var(--md-surface-container-low);
+  --color-surface-container: var(--md-surface-container);
+  --color-surface-container-high: var(--md-surface-container-high);
+  --color-surface-container-highest: var(--md-surface-container-highest);
+  --color-on-surface: var(--md-on-surface);
+  --color-on-surface-variant: var(--md-on-surface-variant);
+
+  --color-outline: var(--md-outline);
+  --color-outline-variant: var(--md-outline-variant);
+
+  --color-sidebar: var(--qb-sidebar-bg);
+  --color-sidebar-hover: var(--qb-sidebar-hover);
+  --color-sidebar-foreground: var(--qb-sidebar-fg);
+  --color-sidebar-foreground-muted: var(--qb-sidebar-fg-muted);
+  --color-sidebar-active: var(--qb-sidebar-active);
+  --color-sidebar-active-foreground: var(--qb-sidebar-active-fg);
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.08), 0 1px 3px 1px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 1px 2px 0 rgb(0 0 0 / 0.1), 0 2px 6px 2px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 2px 3px 0 rgb(0 0 0 / 0.12), 0 6px 10px 4px rgb(0 0 0 / 0.1);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-on-surface);
 }

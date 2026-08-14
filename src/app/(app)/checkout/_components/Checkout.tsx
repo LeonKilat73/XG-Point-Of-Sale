@@ -159,18 +159,18 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
     return (
       <Card className="mx-auto max-w-md">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-slate-900">XG Point of Sale</h2>
-          <p className="text-xs text-slate-500">Car accessories</p>
+          <h2 className="text-lg font-semibold text-on-surface">XG Point of Sale</h2>
+          <p className="text-xs text-on-surface-variant">Car accessories</p>
         </div>
 
-        <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+        <div className="mt-4 flex items-center justify-between text-xs text-on-surface-variant">
           <span>Receipt #{receiptNumber}</span>
           <span>{new Date(receipt.createdAt).toLocaleString()}</span>
         </div>
-        <p className="text-xs text-slate-500">Cashier: {receipt.cashierName}</p>
+        <p className="text-xs text-on-surface-variant">Cashier: {receipt.cashierName}</p>
 
         <table className="mt-4 w-full text-sm">
-          <thead className="border-b border-slate-200 text-left text-xs text-slate-400">
+          <thead className="border-b border-outline-variant text-left text-xs text-on-surface-variant">
             <tr>
               <th className="pb-1 font-medium">Item</th>
               <th className="pb-1 text-right font-medium">Qty</th>
@@ -180,10 +180,10 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
           </thead>
           <tbody>
             {receipt.lines.map((line) => (
-              <tr key={line.sku} className="border-b border-slate-100">
+              <tr key={line.sku} className="border-b border-outline-variant/60">
                 <td className="py-1.5">
-                  <p className="text-slate-900">{line.name}</p>
-                  <p className="font-mono text-xs text-slate-400">{line.sku}</p>
+                  <p className="text-on-surface">{line.name}</p>
+                  <p className="font-mono text-xs text-on-surface-variant">{line.sku}</p>
                 </td>
                 <td className="py-1.5 text-right">{line.quantity}</td>
                 <td className="py-1.5 text-right">${line.unitPrice.toFixed(2)}</td>
@@ -194,27 +194,27 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
         </table>
 
         <div className="mt-3 space-y-1 text-sm">
-          <div className="flex justify-between text-slate-600">
+          <div className="flex justify-between text-on-surface-variant">
             <span>Subtotal</span>
             <span>${receipt.subtotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-base font-semibold text-slate-900">
+          <div className="flex justify-between text-base font-semibold text-on-surface">
             <span>Total</span>
             <span>${receipt.subtotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between capitalize text-slate-600">
+          <div className="flex justify-between capitalize text-on-surface-variant">
             <span>Paid ({receipt.method})</span>
             <span>${receipt.amountPaid.toFixed(2)}</span>
           </div>
           {receipt.method === "cash" && (
-            <div className="flex justify-between text-slate-600">
+            <div className="flex justify-between text-on-surface-variant">
               <span>Change</span>
               <span>${receipt.change.toFixed(2)}</span>
             </div>
           )}
         </div>
 
-        <p className="mt-4 text-center text-xs text-slate-400">Thank you for your purchase!</p>
+        <p className="mt-4 text-center text-xs text-on-surface-variant">Thank you for your purchase!</p>
 
         <Button className="mt-6 w-full" onClick={() => setReceipt(null)}>
           Start next sale
@@ -244,26 +244,26 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
                 autoComplete="off"
               />
               {showDropdown && matches.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+                <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-outline-variant bg-surface shadow-lg">
                   {matches.map((item) => (
                     <button
                       key={item.id}
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handlePickMatch(item)}
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-surface-container-high"
                     >
                       <div>
-                        <p className="font-medium text-slate-900">
+                        <p className="font-medium text-on-surface">
                           {item.name}
                           {item.isBundle && " · bundle"}
                         </p>
-                        <p className="font-mono text-xs text-slate-400">
+                        <p className="font-mono text-xs text-on-surface-variant">
                           {item.sku}
                           {item.category ? ` · ${item.category}` : ""}
                         </p>
                       </div>
-                      <div className="shrink-0 text-right text-xs text-slate-500">
+                      <div className="shrink-0 text-right text-xs text-on-surface-variant">
                         <p>${(item.unitPrice ?? 0).toFixed(2)}</p>
                         <p>{item.stock} in stock</p>
                       </div>
@@ -276,16 +276,16 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
               {lookupPending ? "Looking up…" : "Add"}
             </Button>
           </form>
-          {lookupError && <p className="mt-2 text-sm text-red-600">{lookupError}</p>}
+          {lookupError && <p className="mt-2 text-sm text-error">{lookupError}</p>}
         </Card>
 
         <Card>
-          <h2 className="mb-3 text-sm font-medium text-slate-600">Cart</h2>
+          <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Cart</h2>
           {cart.length === 0 ? (
-            <p className="text-sm text-slate-400">No items yet — search or scan a SKU above.</p>
+            <p className="text-sm text-on-surface-variant">No items yet — search or scan a SKU above.</p>
           ) : (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-slate-400">
+              <thead className="text-left text-xs text-on-surface-variant">
                 <tr>
                   <th className="pb-2 font-medium">Item</th>
                   <th className="pb-2 font-medium">Qty</th>
@@ -296,15 +296,15 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
               </thead>
               <tbody>
                 {cart.map((line) => (
-                  <tr key={line.itemId} className="border-t border-slate-100">
+                  <tr key={line.itemId} className="border-t border-outline-variant/60">
                     <td className="py-2">
-                      <p className="font-medium text-slate-900">{line.name}</p>
-                      <p className="font-mono text-xs text-slate-400">
+                      <p className="font-medium text-on-surface">{line.name}</p>
+                      <p className="font-mono text-xs text-on-surface-variant">
                         {line.sku}
                         {line.isBundle && " · bundle"}
                       </p>
                       {line.quantity > line.stock && (
-                        <p className="text-xs text-red-600">Only {line.stock} in stock</p>
+                        <p className="text-xs text-error">Only {line.stock} in stock</p>
                       )}
                     </td>
                     <td className="py-2">
@@ -313,7 +313,7 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
                         min={1}
                         value={line.quantity}
                         onChange={(e) => updateQuantity(line.itemId, Number(e.target.value))}
-                        className="w-16 rounded border border-slate-300 px-2 py-1"
+                        className="w-16 rounded border border-outline bg-surface px-2 py-1 text-on-surface"
                       />
                     </td>
                     <td className="py-2 text-right">${line.unitPrice.toFixed(2)}</td>
@@ -322,7 +322,7 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
                       <button
                         type="button"
                         onClick={() => removeLine(line.itemId)}
-                        className="text-xs text-red-600 underline underline-offset-2"
+                        className="text-xs text-error underline underline-offset-2"
                       >
                         Remove
                       </button>
@@ -336,13 +336,13 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
       </div>
 
       <Card className="h-fit space-y-4">
-        <div className="flex items-center justify-between text-lg font-medium text-slate-900">
+        <div className="flex items-center justify-between text-lg font-medium text-on-surface">
           <span>Total</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
 
         <div>
-          <span className="mb-1.5 block text-sm font-medium text-slate-600">Payment method</span>
+          <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Payment method</span>
           <div className="flex gap-2">
             {(["cash", "card"] as const).map((m) => (
               <button
@@ -351,8 +351,8 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
                 onClick={() => setMethod(m)}
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-colors ${
                   method === m
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    ? "border-primary bg-primary text-on-primary"
+                    : "border-outline text-on-surface-variant hover:bg-surface-container-high"
                 }`}
               >
                 {m}
@@ -370,15 +370,15 @@ export function Checkout({ catalog, cashierName }: { catalog: InventoryItem[]; c
         />
 
         {method === "cash" && amountNumber > 0 && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-on-surface-variant">
             Change:{" "}
-            <span className="font-medium text-slate-900">
+            <span className="font-medium text-on-surface">
               ${Math.max(0, amountNumber - subtotal).toFixed(2)}
             </span>
           </p>
         )}
 
-        {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+        {submitError && <p className="text-sm text-error">{submitError}</p>}
 
         <Button
           className="w-full"

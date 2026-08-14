@@ -3,12 +3,12 @@ import type { ButtonHTMLAttributes } from "react";
 type Variant = "primary" | "secondary" | "danger";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors px-4 py-2.5 disabled:opacity-40 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors px-4 py-2.5 disabled:opacity-40 disabled:pointer-events-none";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-slate-900 text-white hover:bg-slate-800",
-  secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200",
-  danger: "bg-red-600 text-white hover:bg-red-700",
+  primary: "bg-primary text-on-primary shadow-sm hover:shadow-md hover:brightness-110",
+  secondary: "bg-secondary-container text-on-secondary-container hover:brightness-95",
+  danger: "bg-error text-on-error shadow-sm hover:brightness-110",
 };
 
 export function Button({

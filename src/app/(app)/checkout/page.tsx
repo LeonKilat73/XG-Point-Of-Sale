@@ -8,8 +8,8 @@ export default async function CheckoutPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-medium text-slate-900">Checkout</h1>
-      <p className="mt-1 text-sm text-slate-500">Look up an item, build a cart, and take payment.</p>
+      <h1 className="text-2xl font-medium text-on-surface">Checkout</h1>
+      <p className="mt-1 text-sm text-on-surface-variant">Look up an item, build a cart, and take payment.</p>
 
       <div className="mt-6">
         <Checkout catalog={catalog} cashierName={staff?.fullName ?? "Unknown"} />

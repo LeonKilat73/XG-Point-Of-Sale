@@ -43,13 +43,15 @@ export function ClockButton({ initialShift }: { initialShift: OpenShift }) {
 
   return (
     <div className="flex items-center gap-2">
-      {shift && <span className="text-xs text-slate-500">Clocked in · {elapsed}</span>}
+      {shift && <span className="text-xs text-sidebar-foreground-muted">Clocked in · {elapsed}</span>}
       <button
         type="button"
         onClick={toggle}
         disabled={pending}
         className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
-          shift ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-green-100 text-green-700 hover:bg-green-200"
+          shift
+            ? "bg-error-container text-on-error-container hover:brightness-95"
+            : "bg-primary-container text-on-primary-container hover:brightness-95"
         }`}
       >
         {pending ? "…" : shift ? "Clock out" : "Clock in"}

@@ -19,14 +19,14 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
   const [roleState, roleAction, rolePending] = useActionState(setStaffRole, initialState);
 
   return (
-    <tr className="border-t border-slate-100">
+    <tr className="border-t border-outline-variant/60">
       <td className="px-4 py-3">
-        <p className="text-slate-900">{row.full_name}</p>
-        <p className="text-xs text-slate-400">{row.email}</p>
+        <p className="text-on-surface">{row.full_name}</p>
+        <p className="text-xs text-on-surface-variant">{row.email}</p>
       </td>
       <td className="px-4 py-3">
         {isSelf ? (
-          <span className="capitalize text-slate-500">{row.role}</span>
+          <span className="capitalize text-on-surface-variant">{row.role}</span>
         ) : (
           <form action={roleAction} className="flex items-center gap-2">
             <input type="hidden" name="staffId" value={row.id} />
@@ -34,20 +34,22 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
               name="role"
               defaultValue={row.role}
               onChange={(e) => e.currentTarget.form?.requestSubmit()}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900"
+              className="rounded-lg border border-outline bg-surface px-2 py-1 text-sm text-on-surface"
             >
               <option value="cashier">Cashier</option>
               <option value="manager">Manager</option>
             </select>
-            {rolePending && <span className="text-xs text-slate-400">Saving…</span>}
+            {rolePending && <span className="text-xs text-on-surface-variant">Saving…</span>}
           </form>
         )}
-        {roleState.error && <p className="mt-1 text-xs text-red-600">{roleState.error}</p>}
+        {roleState.error && <p className="mt-1 text-xs text-error">{roleState.error}</p>}
       </td>
       <td className="px-4 py-3">
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-            row.is_active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+            row.is_active
+              ? "bg-primary-container text-on-primary-container"
+              : "bg-surface-container-high text-on-surface-variant"
           }`}
         >
           {row.is_active ? "Active" : "Inactive"}
@@ -55,7 +57,7 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
       </td>
       <td className="px-4 py-3 text-right">
         {isSelf ? (
-          <span className="text-xs text-slate-400">You</span>
+          <span className="text-xs text-on-surface-variant">You</span>
         ) : (
           <form action={activeAction}>
             <input type="hidden" name="staffId" value={row.id} />
@@ -65,7 +67,7 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
             </Button>
           </form>
         )}
-        {activeState.error && <p className="mt-1 text-xs text-red-600">{activeState.error}</p>}
+        {activeState.error && <p className="mt-1 text-xs text-error">{activeState.error}</p>}
       </td>
     </tr>
   );
@@ -73,13 +75,13 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
 
 export function StaffList({ staff, currentStaffId }: { staff: StaffRow[]; currentStaffId: string }) {
   if (staff.length === 0) {
-    return <p className="text-sm text-slate-400">No staff yet.</p>;
+    return <p className="text-sm text-on-surface-variant">No staff yet.</p>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-2xl border border-outline-variant/60 bg-surface-container-low">
       <table className="w-full text-sm">
-        <thead className="text-left text-xs text-slate-400">
+        <thead className="text-left text-xs text-on-surface-variant">
           <tr>
             <th className="px-4 pt-4 pb-2 font-medium">Name</th>
             <th className="px-4 pt-4 pb-2 font-medium">Role</th>

@@ -25,7 +25,7 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
   const [voiding, setVoiding] = useState<string | null>(null);
 
   if (orders.length === 0) {
-    return <p className="text-sm text-slate-400">No orders yet.</p>;
+    return <p className="text-sm text-on-surface-variant">No orders yet.</p>;
   }
 
   return (
@@ -38,19 +38,19 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
           <Card key={order.id}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-xs text-slate-400">{order.id}</p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="font-mono text-xs text-on-surface-variant">{order.id}</p>
+                <p className="mt-1 text-sm text-on-surface-variant">
                   {new Date(order.created_at).toLocaleString()} · {staff?.full_name ?? "Unknown staff"}
                 </p>
                 <button
                   type="button"
                   onClick={() => setExpanded(expanded === order.id ? null : order.id)}
-                  className="mt-1 text-xs text-slate-500 underline underline-offset-2"
+                  className="mt-1 text-xs text-on-surface-variant underline underline-offset-2"
                 >
                   {expanded === order.id ? "Hide items" : `${order.order_lines.length} item(s)`}
                 </button>
                 {expanded === order.id && (
-                  <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                  <ul className="mt-2 space-y-1 text-sm text-on-surface-variant">
                     {order.order_lines.map((line, i) => (
                       <li key={i}>
                         {line.quantity} × {line.name} ({line.sku}) — ${(line.unit_price * line.quantity).toFixed(2)}
@@ -61,9 +61,9 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
               </div>
 
               <div className="text-right">
-                <p className="text-lg font-medium text-slate-900">${order.total.toFixed(2)}</p>
+                <p className="text-lg font-medium text-on-surface">${order.total.toFixed(2)}</p>
                 {isVoided ? (
-                  <p className="mt-1 text-xs text-red-600">
+                  <p className="mt-1 text-xs text-error">
                     Voided {order.voided_at && new Date(order.voided_at).toLocaleString()}
                     {order.void_reason && ` — ${order.void_reason}`}
                   </p>
@@ -71,7 +71,7 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
                   <button
                     type="button"
                     onClick={() => setVoiding(voiding === order.id ? null : order.id)}
-                    className="mt-1 text-xs text-red-600 underline underline-offset-2"
+                    className="mt-1 text-xs text-error underline underline-offset-2"
                   >
                     Void
                   </button>
@@ -101,12 +101,12 @@ function VoidForm({ orderId, onDone }: { orderId: string; onDone: () => void }) 
   return (
     <form
       action={formAction}
-      className="mt-4 space-y-3 rounded-xl border border-red-200 bg-red-50 p-4"
+      className="mt-4 space-y-3 rounded-xl border border-error/30 bg-error-container/15 p-4"
     >
       <input type="hidden" name="orderId" value={orderId} />
       <TextField label="Reason for void" name="reason" required />
       <TextField label="Manager PIN" name="pin" type="password" inputMode="numeric" required />
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-error">{state.error}</p>}
       <div className="flex gap-2">
         <Button type="submit" variant="danger" disabled={pending}>
           {pending ? "Voiding…" : "Confirm void"}

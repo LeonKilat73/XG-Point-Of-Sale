@@ -22,8 +22,10 @@ export function Nav({ role }: { role: "cashier" | "manager" }) {
           <Link
             key={item.href}
             href={item.href}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              active
+                ? "bg-sidebar-active text-sidebar-active-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-hover"
             }`}
           >
             {item.label}

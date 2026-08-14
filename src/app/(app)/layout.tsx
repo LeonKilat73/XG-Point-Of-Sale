@@ -4,6 +4,7 @@ import { signOut } from "@/actions/auth";
 import { getOpenShift } from "@/actions/shifts";
 import { Nav } from "@/components/Nav";
 import { ClockButton } from "@/components/ClockButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const staff = await getCurrentStaff();
@@ -13,31 +14,32 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+      <header className="flex items-center justify-between bg-sidebar px-6 py-4">
         <div className="flex items-center gap-8">
           <div>
-            <p className="text-base font-medium text-slate-900">XG Point of Sale</p>
-            <p className="text-xs text-slate-500">Car accessories checkout</p>
+            <p className="text-base font-medium text-white">XG Point of Sale</p>
+            <p className="text-xs text-sidebar-foreground-muted">Car accessories checkout</p>
           </div>
           <Nav role={staff.role} />
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <ClockButton initialShift={openShift} />
+          <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-hover" />
           <div className="text-right text-sm">
-            <p className="font-medium text-slate-900">{staff.fullName}</p>
-            <p className="capitalize text-slate-500">{staff.role}</p>
+            <p className="font-medium text-white">{staff.fullName}</p>
+            <p className="capitalize text-sidebar-foreground-muted">{staff.role}</p>
           </div>
           <form action={signOut}>
             <button
               type="submit"
-              className="text-sm text-slate-600 underline underline-offset-2 hover:text-slate-900"
+              className="text-sm text-sidebar-foreground underline underline-offset-2 hover:text-white"
             >
               Sign out
             </button>
           </form>
         </div>
       </header>
-      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <main className="flex-1 overflow-y-auto bg-background p-6 text-on-surface">{children}</main>
     </div>
   );
 }
