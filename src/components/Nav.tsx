@@ -8,6 +8,8 @@ export function Nav({ role }: { role: "cashier" | "manager" }) {
 
   const items = [
     { href: "/checkout", label: "Checkout" },
+    { href: "/catalog", label: "Catalog" },
+    { href: "/quotes", label: "Quotes" },
     { href: "/orders", label: "Orders" },
     { href: "/reports", label: "Reports" },
     ...(role === "manager" ? [{ href: "/staff", label: "Staff" }] : []),

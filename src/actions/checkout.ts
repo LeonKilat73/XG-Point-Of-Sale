@@ -3,31 +3,10 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentStaff } from "@/lib/auth/staff";
-import { lookupItemBySku, recordInventorySale, type InventoryItem } from "@/lib/inventory";
-
-export async function lookupSku(sku: string): Promise<{ item: InventoryItem } | { error: string }> {
-  const trimmed = sku.trim();
-  if (!trimmed) return { error: "Enter a SKU." };
-
-  try {
-    const item = await lookupItemBySku(trimmed);
-    if (!item) return { error: `No item found for SKU "${trimmed}".` };
-    return { item };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Lookup failed." };
-  }
-}
-
-export type CartLine = {
-  itemId: string;
-  sku: string;
-  name: string;
-  unitPrice: number;
-  quantity: number;
-  isBundle: boolean;
-  stock: number;
-};
+import { recordInventorySale } from "@/lib/inventory";
+import type { CartLine } from "@/components/CartBuilder";
 
 export type SubmitResult = { error: string } | { orderId: string; change: number };
 
@@ -41,6 +20,7 @@ export type SubmitResult = { error: string } | { orderId: string; change: number
 export async function submitSale(
   cart: CartLine[],
   payment: { method: "cash" | "card"; amount: number },
+  fromQuoteId?: string,
 ): Promise<SubmitResult> {
   const staff = await getCurrentStaff();
   if (!staff) return { error: "You must be signed in." };
@@ -104,7 +84,23 @@ export async function submitSale(
     return { error: `Sale was recorded but the payment failed to save: ${paymentError.message}` };
   }
 
+  // Best-effort: the sale itself already fully succeeded above, so a
+  // failure to tag the source quote shouldn't surface as an error to the
+  // cashier -- worst case the quote just sits there looking un-converted.
+  // Goes through the service-role client because orders_update RLS is
+  // manager-only (that policy exists to gate voids, not this), and a
+  // cashier converting their own quote is an ordinary, non-sensitive action.
+  if (fromQuoteId) {
+    const admin = createAdminClient();
+    await admin
+      .from("orders")
+      .update({ converted_order_id: orderId })
+      .eq("id", fromQuoteId)
+      .eq("status", "quote");
+  }
+
   revalidatePath("/checkout");
+  revalidatePath("/quotes");
   const change = payment.method === "cash" ? payment.amount - subtotal : 0;
   return { orderId, change };
 }
