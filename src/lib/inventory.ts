@@ -59,3 +59,11 @@ export async function recordInventorySale(
   });
   return { movementIds: data.movementIds ?? [] };
 }
+
+// Reverses a sale recorded under the same reference (atomic on inventory's
+// side too -- see fn_void_pos_sale). Throws inventory's own message on
+// failure (already voided, reference not found, etc.).
+export async function voidInventorySale(externalReference: string): Promise<{ movementIds: string[] }> {
+  const data = await inventoryFetch(`/api/v1/sales/${externalReference}/void`, { method: "POST" });
+  return { movementIds: data.movementIds ?? [] };
+}

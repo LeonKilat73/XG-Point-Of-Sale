@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { signOut } from "@/actions/auth";
+import { Nav } from "@/components/Nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const staff = await getCurrentStaff();
@@ -9,9 +10,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <div>
-          <p className="text-base font-medium text-slate-900">XG Point of Sale</p>
-          <p className="text-xs text-slate-500">Car accessories checkout</p>
+        <div className="flex items-center gap-8">
+          <div>
+            <p className="text-base font-medium text-slate-900">XG Point of Sale</p>
+            <p className="text-xs text-slate-500">Car accessories checkout</p>
+          </div>
+          <Nav />
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right text-sm">
