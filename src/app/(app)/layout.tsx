@@ -1,11 +1,15 @@
 import { redirect } from "next/navigation";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { signOut } from "@/actions/auth";
+import { getOpenShift } from "@/actions/shifts";
 import { Nav } from "@/components/Nav";
+import { ClockButton } from "@/components/ClockButton";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const staff = await getCurrentStaff();
   if (!staff) redirect("/login");
+
+  const openShift = await getOpenShift();
 
   return (
     <div className="flex flex-1 flex-col">
@@ -18,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Nav />
         </div>
         <div className="flex items-center gap-4">
+          <ClockButton initialShift={openShift} />
           <div className="text-right text-sm">
             <p className="font-medium text-slate-900">{staff.fullName}</p>
             <p className="capitalize text-slate-500">{staff.role}</p>
