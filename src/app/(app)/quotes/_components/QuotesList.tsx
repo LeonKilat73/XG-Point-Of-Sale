@@ -11,6 +11,7 @@ export type QuoteRow = {
   subtotal: number;
   total: number;
   customer_name: string | null;
+  customer_phone: string | null;
   created_at: string;
   converted_order_id: string | null;
   staff: { full_name: string } | { full_name: string }[] | null;
@@ -38,6 +39,7 @@ export function QuotesList({ quotes }: { quotes: QuoteRow[] }) {
               <div>
                 <p className="text-sm text-on-surface">
                   {quote.customer_name || "Walk-in customer"}
+                  {quote.customer_phone && ` · ${quote.customer_phone}`}
                 </p>
                 <p className="mt-1 text-sm text-on-surface-variant">
                   {new Date(quote.created_at).toLocaleString()} · {staff?.full_name ?? "Unknown staff"}

@@ -17,18 +17,23 @@ export default async function CheckoutPage({
   const catalog = await fetchCatalog().catch(() => []);
 
   let initialCart: CartLine[] | undefined;
+  let initialCustomerName: string | undefined;
+  let initialCustomerPhone: string | undefined;
   let quoteNotice: string | undefined;
 
   if (fromQuote) {
     const supabase = await createClient();
     const { data: quote } = await supabase
       .from("orders")
-      .select("status, converted_order_id, customer_name, order_lines(item_id, sku, name, quantity)")
+      .select(
+        "status, converted_order_id, customer_name, customer_phone, order_lines(item_id, sku, name, quantity)",
+      )
       .eq("id", fromQuote)
       .single<{
         status: string;
         converted_order_id: string | null;
         customer_name: string | null;
+        customer_phone: string | null;
         order_lines: QuoteLine[];
       }>();
 
@@ -57,6 +62,9 @@ export default async function CheckoutPage({
         });
       }
 
+      initialCustomerName = quote.customer_name ?? undefined;
+      initialCustomerPhone = quote.customer_phone ?? undefined;
+
       const who = quote.customer_name ? ` for ${quote.customer_name}` : "";
       quoteNotice =
         skippedLines.length > 0
@@ -75,6 +83,8 @@ export default async function CheckoutPage({
           catalog={catalog}
           cashierName={staff?.fullName ?? "Unknown"}
           initialCart={initialCart}
+          initialCustomerName={initialCustomerName}
+          initialCustomerPhone={initialCustomerPhone}
           fromQuoteId={initialCart ? fromQuote : undefined}
           quoteNotice={quoteNotice}
         />

@@ -13,6 +13,8 @@ type Receipt = {
   orderId: string;
   createdAt: string;
   cashierName: string;
+  customerName: string;
+  customerPhone: string;
   lines: ReceiptLine[];
   subtotal: number;
   method: "cash" | "card";
@@ -24,16 +26,22 @@ export function Checkout({
   catalog,
   cashierName,
   initialCart,
+  initialCustomerName,
+  initialCustomerPhone,
   fromQuoteId,
   quoteNotice,
 }: {
   catalog: InventoryItem[];
   cashierName: string;
   initialCart?: CartLine[];
+  initialCustomerName?: string;
+  initialCustomerPhone?: string;
   fromQuoteId?: string;
   quoteNotice?: string;
 }) {
   const [cart, setCart] = useState<CartLine[]>(initialCart ?? []);
+  const [customerName, setCustomerName] = useState(initialCustomerName ?? "");
+  const [customerPhone, setCustomerPhone] = useState(initialCustomerPhone ?? "");
   const [method, setMethod] = useState<"cash" | "card">("cash");
   const [amount, setAmount] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -46,7 +54,10 @@ export function Checkout({
   async function handleSubmit() {
     setSubmitError(null);
     setSubmitting(true);
-    const result = await submitSale(cart, { method, amount: amountNumber }, fromQuoteId);
+    const result = await submitSale(cart, { method, amount: amountNumber }, fromQuoteId, {
+      name: customerName,
+      phone: customerPhone,
+    });
     setSubmitting(false);
 
     if ("error" in result) {
@@ -58,6 +69,8 @@ export function Checkout({
       orderId: result.orderId,
       createdAt: new Date().toISOString(),
       cashierName,
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
       lines: cart.map((line) => ({
         sku: line.sku,
         name: line.name,
@@ -70,6 +83,8 @@ export function Checkout({
       change: result.change,
     });
     setCart([]);
+    setCustomerName("");
+    setCustomerPhone("");
     setAmount("");
   }
 
@@ -87,6 +102,12 @@ export function Checkout({
           <span>{new Date(receipt.createdAt).toLocaleString()}</span>
         </div>
         <p className="text-xs text-on-surface-variant">Cashier: {receipt.cashierName}</p>
+        {(receipt.customerName || receipt.customerPhone) && (
+          <p className="text-xs text-on-surface-variant">
+            Bill to: {receipt.customerName || "—"}
+            {receipt.customerPhone && ` · ${receipt.customerPhone}`}
+          </p>
+        )}
 
         <table className="mt-4 w-full text-sm">
           <thead className="border-b border-outline-variant text-left text-xs text-on-surface-variant">
@@ -143,69 +164,87 @@ export function Checkout({
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_360px]">
-      <div className="space-y-4">
-        {quoteNotice && (
-          <div className="rounded-lg border border-primary/30 bg-primary-container/30 px-4 py-2 text-sm text-on-surface">
-            {quoteNotice}
-          </div>
-        )}
-        <CartBuilder catalog={catalog} cart={cart} onCartChange={setCart} />
-      </div>
-
-      <Card className="h-fit space-y-4">
-        <div className="flex items-center justify-between text-lg font-medium text-on-surface">
-          <span>Total</span>
-          <span>${subtotal.toFixed(2)}</span>
+    <div className="space-y-4">
+      {quoteNotice && (
+        <div className="rounded-lg border border-primary/30 bg-primary-container/30 px-4 py-2 text-sm text-on-surface">
+          {quoteNotice}
         </div>
+      )}
 
-        <div>
-          <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Payment method</span>
-          <div className="flex gap-2">
-            {(["cash", "card"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMethod(m)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                  method === m
-                    ? "border-primary bg-primary text-on-primary"
-                    : "border-outline text-on-surface-variant hover:bg-surface-container-high"
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
+      <Card>
+        <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Bill to (optional)</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TextField
+            label="Customer name"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+          />
+          <TextField
+            label="Mobile number"
+            type="tel"
+            value={customerPhone}
+            onChange={(e) => setCustomerPhone(e.target.value)}
+          />
         </div>
-
-        <TextField
-          label="Amount received"
-          type="number"
-          step="0.01"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-
-        {method === "cash" && amountNumber > 0 && (
-          <p className="text-sm text-on-surface-variant">
-            Change:{" "}
-            <span className="font-medium text-on-surface">
-              ${Math.max(0, amountNumber - subtotal).toFixed(2)}
-            </span>
-          </p>
-        )}
-
-        {submitError && <p className="text-sm text-error">{submitError}</p>}
-
-        <Button
-          className="w-full"
-          disabled={cart.length === 0 || submitting || amountNumber < subtotal}
-          onClick={handleSubmit}
-        >
-          {submitting ? "Recording sale…" : "Complete sale"}
-        </Button>
       </Card>
+
+      <div className="grid gap-6 md:grid-cols-[1fr_360px]">
+        <CartBuilder catalog={catalog} cart={cart} onCartChange={setCart} />
+
+        <Card className="h-fit space-y-4">
+          <div className="flex items-center justify-between text-lg font-medium text-on-surface">
+            <span>Total</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Payment method</span>
+            <div className="flex gap-2">
+              {(["cash", "card"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMethod(m)}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                    method === m
+                      ? "border-primary bg-primary text-on-primary"
+                      : "border-outline text-on-surface-variant hover:bg-surface-container-high"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <TextField
+            label="Amount received"
+            type="number"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+
+          {method === "cash" && amountNumber > 0 && (
+            <p className="text-sm text-on-surface-variant">
+              Change:{" "}
+              <span className="font-medium text-on-surface">
+                ${Math.max(0, amountNumber - subtotal).toFixed(2)}
+              </span>
+            </p>
+          )}
+
+          {submitError && <p className="text-sm text-error">{submitError}</p>}
+
+          <Button
+            className="w-full"
+            disabled={cart.length === 0 || submitting || amountNumber < subtotal}
+            onClick={handleSubmit}
+          >
+            {submitting ? "Recording sale…" : "Complete sale"}
+          </Button>
+        </Card>
+      </div>
     </div>
   );
 }

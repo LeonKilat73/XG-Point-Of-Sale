@@ -21,6 +21,7 @@ export async function submitSale(
   cart: CartLine[],
   payment: { method: "cash" | "card"; amount: number },
   fromQuoteId?: string,
+  customer?: { name?: string; phone?: string },
 ): Promise<SubmitResult> {
   const staff = await getCurrentStaff();
   if (!staff) return { error: "You must be signed in." };
@@ -55,6 +56,8 @@ export async function submitSale(
     status: "completed",
     subtotal,
     total: subtotal,
+    customer_name: customer?.name?.trim() || null,
+    customer_phone: customer?.phone?.trim() || null,
   });
   if (orderError) {
     return { error: `Sale was recorded in inventory but failed to save locally: ${orderError.message}` };

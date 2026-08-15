@@ -7,7 +7,7 @@ export default async function QuotesPage() {
   const { data: quotes } = await supabase
     .from("orders")
     .select(
-      "id, subtotal, total, customer_name, created_at, converted_order_id, staff:staff_id(full_name), order_lines(sku, name, quantity, unit_price)",
+      "id, subtotal, total, customer_name, customer_phone, created_at, converted_order_id, staff:staff_id(full_name), order_lines(sku, name, quantity, unit_price)",
     )
     .eq("status", "quote")
     .order("created_at", { ascending: false })

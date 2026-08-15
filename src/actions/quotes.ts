@@ -16,7 +16,11 @@ export type SaveQuoteResult = { error: string } | { quoteId: string };
 // reserved or decremented) and no payment row, unlike submitSale. It only
 // becomes a real sale if/when a cashier opens it via
 // /checkout?fromQuote=<id> and completes it normally.
-export async function saveQuote(cart: CartLine[], customerName: string): Promise<SaveQuoteResult> {
+export async function saveQuote(
+  cart: CartLine[],
+  customerName: string,
+  customerPhone: string,
+): Promise<SaveQuoteResult> {
   const staff = await getCurrentStaff();
   if (!staff) return { error: "You must be signed in." };
   if (!staff.isActive) return { error: "Your account is deactivated." };
@@ -34,6 +38,7 @@ export async function saveQuote(cart: CartLine[], customerName: string): Promise
     subtotal,
     total: subtotal,
     customer_name: customerName.trim() || null,
+    customer_phone: customerPhone.trim() || null,
   });
   if (orderError) return { error: orderError.message };
 

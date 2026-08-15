@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { voidOrder, type ActionState } from "@/actions/orders";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -11,6 +11,8 @@ export type OrderRow = {
   status: "completed" | "voided";
   subtotal: number;
   total: number;
+  customer_name: string | null;
+  customer_phone: string | null;
   created_at: string;
   voided_at: string | null;
   void_reason: string | null;
@@ -20,69 +22,107 @@ export type OrderRow = {
 
 const initialState: ActionState = { error: null };
 
+function receiptNumber(id: string) {
+  return id.slice(0, 8).toUpperCase();
+}
+
 export function OrdersList({ orders }: { orders: OrderRow[] }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [voiding, setVoiding] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
-  if (orders.length === 0) {
-    return <p className="text-sm text-on-surface-variant">No orders yet.</p>;
-  }
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter(
+      (order) =>
+        receiptNumber(order.id).toLowerCase().includes(q) ||
+        order.id.toLowerCase().includes(q) ||
+        (order.customer_name?.toLowerCase().includes(q) ?? false) ||
+        (order.customer_phone?.toLowerCase().includes(q) ?? false),
+    );
+  }, [orders, query]);
 
   return (
-    <div className="space-y-3">
-      {orders.map((order) => {
-        const staff = Array.isArray(order.staff) ? order.staff[0] : order.staff;
-        const isVoided = order.status === "voided";
+    <div className="space-y-4">
+      <Card>
+        <TextField
+          label="Search by receipt number, customer name, or mobile number"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoComplete="off"
+        />
+      </Card>
 
-        return (
-          <Card key={order.id}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-mono text-xs text-on-surface-variant">{order.id}</p>
-                <p className="mt-1 text-sm text-on-surface-variant">
-                  {new Date(order.created_at).toLocaleString()} · {staff?.full_name ?? "Unknown staff"}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setExpanded(expanded === order.id ? null : order.id)}
-                  className="mt-1 text-xs text-on-surface-variant underline underline-offset-2"
-                >
-                  {expanded === order.id ? "Hide items" : `${order.order_lines.length} item(s)`}
-                </button>
-                {expanded === order.id && (
-                  <ul className="mt-2 space-y-1 text-sm text-on-surface-variant">
-                    {order.order_lines.map((line, i) => (
-                      <li key={i}>
-                        {line.quantity} × {line.name} ({line.sku}) — ${(line.unit_price * line.quantity).toFixed(2)}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+      {filtered.length === 0 ? (
+        <p className="text-sm text-on-surface-variant">
+          {orders.length === 0 ? "No orders yet." : "No orders match that search."}
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((order) => {
+            const staff = Array.isArray(order.staff) ? order.staff[0] : order.staff;
+            const isVoided = order.status === "voided";
 
-              <div className="text-right">
-                <p className="text-lg font-medium text-on-surface">${order.total.toFixed(2)}</p>
-                {isVoided ? (
-                  <p className="mt-1 text-xs text-error">
-                    Voided {order.voided_at && new Date(order.voided_at).toLocaleString()}
-                    {order.void_reason && ` — ${order.void_reason}`}
-                  </p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setVoiding(voiding === order.id ? null : order.id)}
-                    className="mt-1 text-xs text-error underline underline-offset-2"
-                  >
-                    Void
-                  </button>
-                )}
-              </div>
-            </div>
+            return (
+              <Card key={order.id}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-mono text-xs text-on-surface-variant">
+                      #{receiptNumber(order.id)}
+                    </p>
+                    <p className="mt-1 text-sm text-on-surface">
+                      {order.customer_name || order.customer_phone
+                        ? [order.customer_name, order.customer_phone].filter(Boolean).join(" · ")
+                        : "Walk-in customer"}
+                    </p>
+                    <p className="mt-1 text-sm text-on-surface-variant">
+                      {new Date(order.created_at).toLocaleString()} · {staff?.full_name ?? "Unknown staff"}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setExpanded(expanded === order.id ? null : order.id)}
+                      className="mt-1 text-xs text-on-surface-variant underline underline-offset-2"
+                    >
+                      {expanded === order.id ? "Hide items" : `${order.order_lines.length} item(s)`}
+                    </button>
+                    {expanded === order.id && (
+                      <ul className="mt-2 space-y-1 text-sm text-on-surface-variant">
+                        {order.order_lines.map((line, i) => (
+                          <li key={i}>
+                            {line.quantity} × {line.name} ({line.sku}) — $
+                            {(line.unit_price * line.quantity).toFixed(2)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
 
-            {voiding === order.id && <VoidForm orderId={order.id} onDone={() => setVoiding(null)} />}
-          </Card>
-        );
-      })}
+                  <div className="text-right">
+                    <p className="text-lg font-medium text-on-surface">${order.total.toFixed(2)}</p>
+                    {isVoided ? (
+                      <p className="mt-1 text-xs text-error">
+                        Voided {order.voided_at && new Date(order.voided_at).toLocaleString()}
+                        {order.void_reason && ` — ${order.void_reason}`}
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setVoiding(voiding === order.id ? null : order.id)}
+                        className="mt-1 text-xs text-error underline underline-offset-2"
+                      >
+                        Void
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {voiding === order.id && <VoidForm orderId={order.id} onDone={() => setVoiding(null)} />}
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
