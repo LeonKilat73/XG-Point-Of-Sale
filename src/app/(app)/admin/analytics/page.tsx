@@ -6,6 +6,7 @@ import {
   type OrderRow,
   type PaymentRow,
   type LineRow,
+  type ReturnRow,
 } from "./_components/AnalyticsDashboard";
 
 export default async function AnalyticsPage() {
@@ -47,6 +48,16 @@ export default async function AnalyticsPage() {
           .returns<LineRow[]>()
       : { data: [] as LineRow[] };
 
+  // Independent of the orders window above -- returns have their own
+  // created_at (when the refund happened, not when the original sale did),
+  // same reasoning as why Voids buckets on voided_at rather than created_at.
+  const { data: returns } = await supabase
+    .from("returns")
+    .select("order_line_id, quantity, refund_amount, reason, created_at, staff:staff_id(full_name), order_lines(sku, name)")
+    .order("created_at", { ascending: false })
+    .limit(2000)
+    .returns<ReturnRow[]>();
+
   return (
     <div>
       <h1 className="text-2xl font-medium text-on-surface">Analytics</h1>
@@ -55,7 +66,7 @@ export default async function AnalyticsPage() {
       </p>
 
       <div className="mt-6">
-        <AnalyticsDashboard orders={allOrders} payments={payments ?? []} lines={lines ?? []} />
+        <AnalyticsDashboard orders={allOrders} payments={payments ?? []} lines={lines ?? []} returns={returns ?? []} />
       </div>
     </div>
   );

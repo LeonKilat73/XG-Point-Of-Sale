@@ -35,6 +35,15 @@ export type OrderRow = {
 };
 export type PaymentRow = { order_id: string; method: string; amount: number };
 export type LineRow = { order_id: string; sku: string; name: string; quantity: number; unit_price: number };
+export type ReturnRow = {
+  order_line_id: string;
+  quantity: number;
+  refund_amount: number;
+  reason: string | null;
+  created_at: string;
+  staff: { full_name: string } | { full_name: string }[] | null;
+  order_lines: { sku: string; name: string } | { sku: string; name: string }[] | null;
+};
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -78,10 +87,12 @@ export function AnalyticsDashboard({
   orders,
   payments,
   lines,
+  returns,
 }: {
   orders: OrderRow[];
   payments: PaymentRow[];
   lines: LineRow[];
+  returns: ReturnRow[];
 }) {
   const [period, setPeriod] = useState<Period>("month");
   const theme = useTheme();
@@ -161,6 +172,12 @@ export function AnalyticsDashboard({
   );
   const voidsTotal = voids.reduce((sum, o) => sum + o.total, 0);
 
+  const refundsInWindow = useMemo(
+    () => returns.filter((r) => new Date(r.created_at) >= windowStartDate),
+    [returns, windowStartDate],
+  );
+  const refundsTotal = refundsInWindow.reduce((sum, r) => sum + r.refund_amount, 0);
+
   const quotesInWindow = useMemo(
     () => orders.filter((o) => o.status === "quote" && new Date(o.created_at) >= windowStartDate),
     [orders, windowStartDate],
@@ -193,7 +210,7 @@ export function AnalyticsDashboard({
         </div>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <p className="text-sm text-on-surface-variant">Revenue</p>
           <p className="mt-1 text-2xl font-medium text-on-surface">${totalRevenue.toFixed(2)}</p>
@@ -206,6 +223,13 @@ export function AnalyticsDashboard({
           <p className="mt-1 text-2xl font-medium text-on-surface">${voidsTotal.toFixed(2)}</p>
           <p className="mt-1 text-xs text-on-surface-variant">
             {voids.length} order{voids.length === 1 ? "" : "s"}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-sm text-on-surface-variant">Refunded</p>
+          <p className="mt-1 text-2xl font-medium text-on-surface">${refundsTotal.toFixed(2)}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            {refundsInWindow.length} return{refundsInWindow.length === 1 ? "" : "s"}
           </p>
         </Card>
         <Card>
@@ -340,7 +364,7 @@ export function AnalyticsDashboard({
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Voids</h2>
           {voids.length === 0 ? (
@@ -362,6 +386,37 @@ export function AnalyticsDashboard({
                   <span className="text-on-surface">${o.total.toFixed(2)}</span>
                 </li>
               ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Refunds</h2>
+          {refundsInWindow.length === 0 ? (
+            <p className="text-sm text-on-surface-variant">No refunds in this period.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {refundsInWindow.slice(0, 10).map((r, i) => {
+                const staff = Array.isArray(r.staff) ? r.staff[0] : r.staff;
+                const line = Array.isArray(r.order_lines) ? r.order_lines[0] : r.order_lines;
+                return (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between border-b border-outline-variant/60 pb-2 last:border-0 last:pb-0"
+                  >
+                    <div>
+                      <p className="text-on-surface">
+                        {r.quantity} × {line?.name ?? "Unknown item"}
+                      </p>
+                      <p className="text-xs text-on-surface-variant">
+                        {new Date(r.created_at).toLocaleDateString()} · {staff?.full_name ?? "Unknown staff"}
+                        {r.reason && ` — ${r.reason}`}
+                      </p>
+                    </div>
+                    <span className="text-on-surface">${r.refund_amount.toFixed(2)}</span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>

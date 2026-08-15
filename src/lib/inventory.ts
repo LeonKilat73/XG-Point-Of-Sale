@@ -78,3 +78,20 @@ export async function voidInventorySale(externalReference: string): Promise<{ mo
   const data = await inventoryFetch(`/api/v1/sales/${externalReference}/void`, { method: "POST" });
   return { movementIds: data.movementIds ?? [] };
 }
+
+// Reverses specific line(s) of a sale by quantity -- a partial return,
+// unlike voidInventorySale above which reverses the whole sale. Throws
+// inventory's own message on failure (over-return, already voided, etc.),
+// which fn_partial_return_pos_sale tracks per-line so repeated partial
+// returns against the same order can't together exceed what was sold.
+export async function returnInventorySale(
+  externalReference: string,
+  lines: SaleLine[],
+  note?: string,
+): Promise<{ movementIds: string[] }> {
+  const data = await inventoryFetch(`/api/v1/sales/${externalReference}/return`, {
+    method: "POST",
+    body: JSON.stringify({ lines, note }),
+  });
+  return { movementIds: data.movementIds ?? [] };
+}

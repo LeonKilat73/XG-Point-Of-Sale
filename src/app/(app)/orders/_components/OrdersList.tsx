@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { voidOrder, type ActionState } from "@/actions/orders";
+import { refundOrder, voidOrder, type ActionState } from "@/actions/orders";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
@@ -24,8 +24,9 @@ export type OrderRow = {
   voided_at: string | null;
   void_reason: string | null;
   staff: { full_name: string } | { full_name: string }[] | null;
-  order_lines: { sku: string; name: string; quantity: number; unit_price: number }[];
+  order_lines: { id: string; sku: string; name: string; quantity: number; unit_price: number }[];
   payments: { method: string; reference_number: string | null }[];
+  returns: { order_line_id: string; quantity: number; refund_amount: number; reason: string | null; created_at: string }[];
 };
 
 const initialState: ActionState = { error: null };
@@ -37,6 +38,7 @@ function receiptNumber(id: string) {
 export function OrdersList({ orders }: { orders: OrderRow[] }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [voiding, setVoiding] = useState<string | null>(null);
+  const [refundingLine, setRefundingLine] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -108,13 +110,45 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
                       {expanded === order.id ? "Hide items" : `${order.order_lines.length} item(s)`}
                     </button>
                     {expanded === order.id && (
-                      <ul className="mt-2 space-y-1 text-sm text-on-surface-variant">
-                        {order.order_lines.map((line, i) => (
-                          <li key={i}>
-                            {line.quantity} × {line.name} ({line.sku}) — $
-                            {(line.unit_price * line.quantity).toFixed(2)}
-                          </li>
-                        ))}
+                      <ul className="mt-2 space-y-2 text-sm text-on-surface-variant">
+                        {order.order_lines.map((line) => {
+                          const returnedQty = order.returns
+                            .filter((r) => r.order_line_id === line.id)
+                            .reduce((sum, r) => sum + r.quantity, 0);
+                          const remaining = line.quantity - returnedQty;
+
+                          return (
+                            <li key={line.id}>
+                              <div className="flex items-center justify-between gap-2">
+                                <span>
+                                  {line.quantity} × {line.name} ({line.sku}) — $
+                                  {(line.unit_price * line.quantity).toFixed(2)}
+                                  {returnedQty > 0 && ` — ${returnedQty} refunded`}
+                                </span>
+                                {!isVoided && remaining > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setRefundingLine(refundingLine === line.id ? null : line.id)
+                                    }
+                                    className="shrink-0 text-xs text-error underline underline-offset-2"
+                                  >
+                                    Refund
+                                  </button>
+                                )}
+                              </div>
+                              {refundingLine === line.id && (
+                                <RefundForm
+                                  orderId={order.id}
+                                  orderLineId={line.id}
+                                  maxQuantity={remaining}
+                                  unitPrice={line.unit_price}
+                                  onDone={() => setRefundingLine(null)}
+                                />
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
@@ -145,6 +179,65 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
         </div>
       )}
     </div>
+  );
+}
+
+function RefundForm({
+  orderId,
+  orderLineId,
+  maxQuantity,
+  unitPrice,
+  onDone,
+}: {
+  orderId: string;
+  orderLineId: string;
+  maxQuantity: number;
+  unitPrice: number;
+  onDone: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(refundOrder, initialState);
+  const [quantity, setQuantity] = useState(1);
+
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending && !state.error) {
+      onDone();
+    }
+    wasPending.current = pending;
+  }, [pending, state, onDone]);
+
+  return (
+    <form
+      action={formAction}
+      className="mt-2 space-y-3 rounded-xl border border-error/30 bg-error-container/15 p-4"
+    >
+      <input type="hidden" name="orderId" value={orderId} />
+      <input type="hidden" name="orderLineId" value={orderLineId} />
+      <TextField
+        label={`Quantity to refund (max ${maxQuantity})`}
+        name="quantity"
+        type="number"
+        min={1}
+        max={maxQuantity}
+        value={quantity}
+        onChange={(e) => setQuantity(Number(e.target.value))}
+        required
+      />
+      <p className="text-xs text-on-surface-variant">
+        Refund amount: ${(unitPrice * Math.max(1, Math.min(quantity, maxQuantity))).toFixed(2)}
+      </p>
+      <TextField label="Reason for refund" name="reason" required />
+      <TextField label="Manager PIN" name="pin" type="password" inputMode="numeric" required />
+      {state.error && <p className="text-sm text-error">{state.error}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" variant="danger" disabled={pending}>
+          {pending ? "Refunding…" : "Confirm refund"}
+        </Button>
+        <Button type="button" variant="secondary" onClick={onDone} disabled={pending}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 
