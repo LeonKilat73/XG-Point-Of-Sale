@@ -1,12 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { submitSale } from "@/actions/checkout";
+import { submitSale, type PaymentMethod } from "@/actions/checkout";
 import type { InventoryItem } from "@/lib/inventory";
 import { CartBuilder, type CartLine } from "@/components/CartBuilder";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
+
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: "cash", label: "Cash" },
+  { value: "card", label: "Card" },
+  { value: "ewallet", label: "E-wallet" },
+  { value: "bank_transfer", label: "Bank transfer" },
+];
+
+const METHOD_LABELS: Record<PaymentMethod, string> = Object.fromEntries(
+  PAYMENT_METHODS.map((m) => [m.value, m.label]),
+) as Record<PaymentMethod, string>;
 
 type ReceiptLine = { sku: string; name: string; quantity: number; unitPrice: number };
 type Receipt = {
@@ -17,8 +28,9 @@ type Receipt = {
   customerPhone: string;
   lines: ReceiptLine[];
   subtotal: number;
-  method: "cash" | "card";
+  method: PaymentMethod;
   amountPaid: number;
+  referenceNumber: string;
   change: number;
 };
 
@@ -42,22 +54,29 @@ export function Checkout({
   const [cart, setCart] = useState<CartLine[]>(initialCart ?? []);
   const [customerName, setCustomerName] = useState(initialCustomerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(initialCustomerPhone ?? "");
-  const [method, setMethod] = useState<"cash" | "card">("cash");
+  const [method, setMethod] = useState<PaymentMethod>("cash");
   const [amount, setAmount] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
-  const amountNumber = Number(amount) || 0;
+  // Only cash can differ from the total (change is handed back); card,
+  // e-wallet, and bank transfer are always charged/sent the exact amount.
+  const amountNumber = method === "cash" ? Number(amount) || 0 : subtotal;
+  const needsReference = method === "ewallet" || method === "bank_transfer";
+  const referenceMissing = needsReference && referenceNumber.trim().length === 0;
 
   async function handleSubmit() {
     setSubmitError(null);
     setSubmitting(true);
-    const result = await submitSale(cart, { method, amount: amountNumber }, fromQuoteId, {
-      name: customerName,
-      phone: customerPhone,
-    });
+    const result = await submitSale(
+      cart,
+      { method, amount: amountNumber, referenceNumber: needsReference ? referenceNumber : undefined },
+      fromQuoteId,
+      { name: customerName, phone: customerPhone },
+    );
     setSubmitting(false);
 
     if ("error" in result) {
@@ -80,12 +99,14 @@ export function Checkout({
       subtotal,
       method,
       amountPaid: amountNumber,
+      referenceNumber: referenceNumber.trim(),
       change: result.change,
     });
     setCart([]);
     setCustomerName("");
     setCustomerPhone("");
     setAmount("");
+    setReferenceNumber("");
   }
 
   if (receipt) {
@@ -142,10 +163,16 @@ export function Checkout({
             <span>Total</span>
             <span>${receipt.subtotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between capitalize text-on-surface-variant">
-            <span>Paid ({receipt.method})</span>
+          <div className="flex justify-between text-on-surface-variant">
+            <span>Paid ({METHOD_LABELS[receipt.method]})</span>
             <span>${receipt.amountPaid.toFixed(2)}</span>
           </div>
+          {receipt.referenceNumber && (
+            <div className="flex justify-between text-on-surface-variant">
+              <span>Reference #</span>
+              <span className="font-mono">{receipt.referenceNumber}</span>
+            </div>
+          )}
           {receipt.method === "cash" && (
             <div className="flex justify-between text-on-surface-variant">
               <span>Change</span>
@@ -199,31 +226,49 @@ export function Checkout({
 
           <div>
             <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Payment method</span>
-            <div className="flex gap-2">
-              {(["cash", "card"] as const).map((m) => (
+            <div className="grid grid-cols-2 gap-2">
+              {PAYMENT_METHODS.map((m) => (
                 <button
-                  key={m}
+                  key={m.value}
                   type="button"
-                  onClick={() => setMethod(m)}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                    method === m
+                  onClick={() => setMethod(m.value)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    method === m.value
                       ? "border-primary bg-primary text-on-primary"
                       : "border-outline text-on-surface-variant hover:bg-surface-container-high"
                   }`}
                 >
-                  {m}
+                  {m.label}
                 </button>
               ))}
             </div>
           </div>
 
-          <TextField
-            label="Amount received"
-            type="number"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
+          {method === "cash" && (
+            <TextField
+              label="Amount received"
+              type="number"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          )}
+
+          {needsReference && (
+            <TextField
+              label={`${METHOD_LABELS[method]} reference number`}
+              value={referenceNumber}
+              onChange={(e) => setReferenceNumber(e.target.value)}
+              placeholder="From the payment confirmation"
+              required
+            />
+          )}
+
+          {method === "card" && (
+            <p className="text-sm text-on-surface-variant">
+              Charge ${subtotal.toFixed(2)} on the terminal and attach the printed receipt.
+            </p>
+          )}
 
           {method === "cash" && amountNumber > 0 && (
             <p className="text-sm text-on-surface-variant">
@@ -238,7 +283,7 @@ export function Checkout({
 
           <Button
             className="w-full"
-            disabled={cart.length === 0 || submitting || amountNumber < subtotal}
+            disabled={cart.length === 0 || submitting || amountNumber < subtotal || referenceMissing}
             onClick={handleSubmit}
           >
             {submitting ? "Recording sale…" : "Complete sale"}

@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
 
+const METHOD_LABELS: Record<string, string> = {
+  cash: "Cash",
+  card: "Card",
+  ewallet: "E-wallet",
+  bank_transfer: "Bank transfer",
+};
+
 export type OrderRow = {
   id: string;
   status: "completed" | "voided";
@@ -18,6 +25,7 @@ export type OrderRow = {
   void_reason: string | null;
   staff: { full_name: string } | { full_name: string }[] | null;
   order_lines: { sku: string; name: string; quantity: number; unit_price: number }[];
+  payments: { method: string; reference_number: string | null }[];
 };
 
 const initialState: ActionState = { error: null };
@@ -39,7 +47,8 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
         receiptNumber(order.id).toLowerCase().includes(q) ||
         order.id.toLowerCase().includes(q) ||
         (order.customer_name?.toLowerCase().includes(q) ?? false) ||
-        (order.customer_phone?.toLowerCase().includes(q) ?? false),
+        (order.customer_phone?.toLowerCase().includes(q) ?? false) ||
+        order.payments.some((p) => p.reference_number?.toLowerCase().includes(q) ?? false),
     );
   }, [orders, query]);
 
@@ -47,7 +56,7 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
     <div className="space-y-4">
       <Card>
         <TextField
-          label="Search by receipt number, customer name, or mobile number"
+          label="Search by receipt number, customer name, mobile number, or reference number"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoComplete="off"
@@ -63,6 +72,7 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
           {filtered.map((order) => {
             const staff = Array.isArray(order.staff) ? order.staff[0] : order.staff;
             const isVoided = order.status === "voided";
+            const payment = order.payments[0];
 
             return (
               <Card key={order.id}>
@@ -79,6 +89,17 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
                     <p className="mt-1 text-sm text-on-surface-variant">
                       {new Date(order.created_at).toLocaleString()} · {staff?.full_name ?? "Unknown staff"}
                     </p>
+                    {payment && (
+                      <p className="mt-1 text-sm text-on-surface-variant">
+                        {METHOD_LABELS[payment.method] ?? payment.method}
+                        {payment.reference_number && (
+                          <>
+                            {" "}
+                            · Ref <span className="font-mono">{payment.reference_number}</span>
+                          </>
+                        )}
+                      </p>
+                    )}
                     <button
                       type="button"
                       onClick={() => setExpanded(expanded === order.id ? null : order.id)}

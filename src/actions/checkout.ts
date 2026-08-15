@@ -17,9 +17,11 @@ export type SubmitResult = { error: string } | { orderId: string; change: number
 // written. A failed inventory call (e.g. oversold) leaves nothing behind on
 // either side, rather than a local "completed" order with no matching stock
 // movements.
+export type PaymentMethod = "cash" | "card" | "ewallet" | "bank_transfer";
+
 export async function submitSale(
   cart: CartLine[],
-  payment: { method: "cash" | "card"; amount: number },
+  payment: { method: PaymentMethod; amount: number; referenceNumber?: string },
   fromQuoteId?: string,
   customer?: { name?: string; phone?: string },
 ): Promise<SubmitResult> {
@@ -34,6 +36,11 @@ export async function submitSale(
     return {
       error: `Payment of $${payment.amount.toFixed(2)} is less than the total of $${subtotal.toFixed(2)}.`,
     };
+  }
+
+  const referenceNumber = payment.referenceNumber?.trim() || null;
+  if ((payment.method === "ewallet" || payment.method === "bank_transfer") && !referenceNumber) {
+    return { error: "Enter the e-wallet or bank transfer reference number before completing the sale." };
   }
 
   const orderId = randomUUID();
@@ -82,6 +89,7 @@ export async function submitSale(
     order_id: orderId,
     method: payment.method,
     amount: payment.amount,
+    reference_number: referenceNumber,
   });
   if (paymentError) {
     return { error: `Sale was recorded but the payment failed to save: ${paymentError.message}` };
