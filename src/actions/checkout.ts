@@ -24,6 +24,7 @@ export async function submitSale(
   payment: { method: PaymentMethod; amount: number; referenceNumber?: string },
   fromQuoteId?: string,
   customer?: { name?: string; phone?: string },
+  allowPartialPayment?: boolean,
 ): Promise<SubmitResult> {
   const staff = await getCurrentStaff();
   if (!staff) return { error: "You must be signed in." };
@@ -32,14 +33,20 @@ export async function submitSale(
   if (cart.length === 0) return { error: "Cart is empty." };
 
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
-  if (payment.amount < subtotal) {
+  if (!allowPartialPayment && payment.amount < subtotal) {
     return {
       error: `Payment of $${payment.amount.toFixed(2)} is less than the total of $${subtotal.toFixed(2)}.`,
     };
   }
 
+  // A credit sale needs a real identity to collect the balance from later --
+  // "optional" Bill-to only makes sense when the sale is paid in full today.
+  if (allowPartialPayment && (!customer?.name?.trim() || !customer?.phone?.trim())) {
+    return { error: "Credit sales require a customer name and mobile number." };
+  }
+
   const referenceNumber = payment.referenceNumber?.trim() || null;
-  if ((payment.method === "ewallet" || payment.method === "bank_transfer") && !referenceNumber) {
+  if (payment.amount > 0 && (payment.method === "ewallet" || payment.method === "bank_transfer") && !referenceNumber) {
     return { error: "Enter the e-wallet or bank transfer reference number before completing the sale." };
   }
 
@@ -85,14 +92,19 @@ export async function submitSale(
     return { error: `Sale was recorded but its line items failed to save: ${linesError.message}` };
   }
 
-  const { error: paymentError } = await supabase.from("payments").insert({
-    order_id: orderId,
-    method: payment.method,
-    amount: payment.amount,
-    reference_number: referenceNumber,
-  });
-  if (paymentError) {
-    return { error: `Sale was recorded but the payment failed to save: ${paymentError.message}` };
+  // A pure $0-down credit sale records no payment at all -- payments stays
+  // empty until money actually changes hands, rather than a zero-amount row.
+  if (payment.amount > 0) {
+    const { error: paymentError } = await supabase.from("payments").insert({
+      order_id: orderId,
+      method: payment.method,
+      amount: payment.amount,
+      reference_number: referenceNumber,
+      staff_id: staff.id,
+    });
+    if (paymentError) {
+      return { error: `Sale was recorded but the payment failed to save: ${paymentError.message}` };
+    }
   }
 
   // Best-effort: the sale itself already fully succeeded above, so a
@@ -112,6 +124,6 @@ export async function submitSale(
 
   revalidatePath("/checkout");
   revalidatePath("/quotes");
-  const change = payment.method === "cash" ? payment.amount - subtotal : 0;
+  const change = payment.method === "cash" && payment.amount > subtotal ? payment.amount - subtotal : 0;
   return { orderId, change };
 }

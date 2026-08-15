@@ -23,7 +23,7 @@ export default async function AnalyticsPage() {
   // larger; fine for now, not worth pre-optimizing.
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, status, total, created_at, customer_name, void_reason, voided_at, converted_order_id")
+    .select("id, status, total, created_at, customer_name, customer_phone, void_reason, voided_at, converted_order_id")
     .order("created_at", { ascending: false })
     .limit(5000)
     .returns<OrderRow[]>();

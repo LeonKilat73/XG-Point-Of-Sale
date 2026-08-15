@@ -29,6 +29,7 @@ export type OrderRow = {
   total: number;
   created_at: string;
   customer_name: string | null;
+  customer_phone: string | null;
   void_reason: string | null;
   voided_at: string | null;
   converted_order_id: string | null;
@@ -194,6 +195,46 @@ export function AnalyticsDashboard({
     [warrantyReplacements, windowStartDate],
   );
   const replacementsValue = replacementsInWindow.reduce((sum, w) => sum + w.unit_price * w.quantity, 0);
+
+  // Not windowed by the period selector -- a customer's debt doesn't
+  // respect a reporting period, this is an always-current snapshot of who
+  // still owes money, same reasoning as the days-outstanding figure below.
+  const customerBalances = useMemo(() => {
+    const paidByOrder = new Map<string, number>();
+    for (const p of payments) {
+      paidByOrder.set(p.order_id, (paidByOrder.get(p.order_id) ?? 0) + p.amount);
+    }
+    const byCustomer = new Map<
+      string,
+      { name: string; phone: string; balance: number; orders: number; oldest: Date }
+    >();
+    for (const o of orders) {
+      if (o.status !== "completed") continue;
+      const balance = Math.round((o.total - (paidByOrder.get(o.id) ?? 0)) * 100) / 100;
+      if (balance <= 0) continue;
+      const key = o.customer_phone || o.customer_name || o.id;
+      const createdAt = new Date(o.created_at);
+      const entry = byCustomer.get(key) ?? {
+        name: o.customer_name || "Unknown customer",
+        phone: o.customer_phone || "",
+        balance: 0,
+        orders: 0,
+        oldest: createdAt,
+      };
+      entry.balance += balance;
+      entry.orders += 1;
+      if (createdAt < entry.oldest) entry.oldest = createdAt;
+      byCustomer.set(key, entry);
+    }
+    return [...byCustomer.values()]
+      .map((c) => ({
+        ...c,
+        balance: Math.round(c.balance * 100) / 100,
+        daysOutstanding: Math.max(0, Math.floor((now.getTime() - c.oldest.getTime()) / 86400000)),
+      }))
+      .sort((a, b) => b.balance - a.balance);
+  }, [orders, payments, now]);
+  const totalOutstanding = customerBalances.reduce((sum, c) => sum + c.balance, 0);
   const replacementsUnits = replacementsInWindow.reduce((sum, w) => sum + w.quantity, 0);
 
   const quotesInWindow = useMemo(
@@ -498,6 +539,44 @@ export function AnalyticsDashboard({
           )}
         </Card>
       </div>
+
+      <Card>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-sm font-medium text-on-surface-variant">Customer balances</h2>
+          <span className="text-xs text-on-surface-variant">
+            Always current, not limited to the period above
+          </span>
+        </div>
+        {customerBalances.length === 0 ? (
+          <p className="text-sm text-on-surface-variant">No outstanding customer balances.</p>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-on-surface-variant">
+              Total outstanding: <span className="font-medium text-on-surface">${totalOutstanding.toFixed(2)}</span>
+            </p>
+            <ul className="space-y-2 text-sm">
+              {customerBalances.map((c) => (
+                <li
+                  key={c.phone || c.name}
+                  className="flex items-center justify-between border-b border-outline-variant/60 pb-2 last:border-0 last:pb-0"
+                >
+                  <div>
+                    <p className="text-on-surface">
+                      {c.name}
+                      {c.phone && ` · ${c.phone}`}
+                    </p>
+                    <p className="text-xs text-on-surface-variant">
+                      {c.orders} order{c.orders === 1 ? "" : "s"} · {c.daysOutstanding} day
+                      {c.daysOutstanding === 1 ? "" : "s"} outstanding
+                    </p>
+                  </div>
+                  <span className="font-medium text-error">${c.balance.toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Card>
     </div>
   );
 }

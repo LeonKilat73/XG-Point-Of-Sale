@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { refundOrder, replaceOrder, voidOrder, type ActionState } from "@/actions/orders";
+import { recordPayment, refundOrder, replaceOrder, voidOrder, type ActionState } from "@/actions/orders";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
@@ -25,7 +25,7 @@ export type OrderRow = {
   void_reason: string | null;
   staff: { full_name: string } | { full_name: string }[] | null;
   order_lines: { id: string; sku: string; name: string; quantity: number; unit_price: number }[];
-  payments: { method: string; reference_number: string | null }[];
+  payments: { method: string; reference_number: string | null; amount: number }[];
   returns: { order_line_id: string; quantity: number; refund_amount: number; reason: string | null; created_at: string }[];
   warranty_replacements: { original_order_line_id: string; quantity: number }[];
 };
@@ -41,6 +41,7 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
   const [voiding, setVoiding] = useState<string | null>(null);
   const [refundingLine, setRefundingLine] = useState<string | null>(null);
   const [replacingLine, setReplacingLine] = useState<string | null>(null);
+  const [payingOrder, setPayingOrder] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -77,6 +78,8 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
             const staff = Array.isArray(order.staff) ? order.staff[0] : order.staff;
             const isVoided = order.status === "voided";
             const payment = order.payments[0];
+            const paidSoFar = order.payments.reduce((sum, p) => sum + p.amount, 0);
+            const balanceDue = Math.round((order.total - paidSoFar) * 100) / 100;
 
             return (
               <Card key={order.id}>
@@ -182,23 +185,44 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
 
                   <div className="text-right">
                     <p className="text-lg font-medium text-on-surface">${order.total.toFixed(2)}</p>
+                    {!isVoided && balanceDue > 0 && (
+                      <p className="mt-1 text-xs text-error">Balance due: ${balanceDue.toFixed(2)}</p>
+                    )}
                     {isVoided ? (
                       <p className="mt-1 text-xs text-error">
                         Voided {order.voided_at && new Date(order.voided_at).toLocaleString()}
                         {order.void_reason && ` — ${order.void_reason}`}
                       </p>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => setVoiding(voiding === order.id ? null : order.id)}
-                        className="mt-1 text-xs text-error underline underline-offset-2"
-                      >
-                        Void
-                      </button>
+                      <div className="mt-1 flex flex-col items-end gap-1">
+                        {balanceDue > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setPayingOrder(payingOrder === order.id ? null : order.id)}
+                            className="text-xs text-primary underline underline-offset-2"
+                          >
+                            Record payment
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setVoiding(voiding === order.id ? null : order.id)}
+                          className="text-xs text-error underline underline-offset-2"
+                        >
+                          Void
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
 
+                {payingOrder === order.id && (
+                  <PaymentForm
+                    orderId={order.id}
+                    balanceDue={balanceDue}
+                    onDone={() => setPayingOrder(null)}
+                  />
+                )}
                 {voiding === order.id && <VoidForm orderId={order.id} onDone={() => setVoiding(null)} />}
               </Card>
             );
@@ -322,6 +346,86 @@ function WarrantyForm({
       <div className="flex gap-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Replacing…" : "Confirm replacement"}
+        </Button>
+        <Button type="button" variant="secondary" onClick={onDone} disabled={pending}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+const RECORD_PAYMENT_METHODS: { value: string; label: string }[] = [
+  { value: "cash", label: "Cash" },
+  { value: "card", label: "Card" },
+  { value: "ewallet", label: "E-wallet" },
+  { value: "bank_transfer", label: "Bank transfer" },
+];
+
+function PaymentForm({
+  orderId,
+  balanceDue,
+  onDone,
+}: {
+  orderId: string;
+  balanceDue: number;
+  onDone: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(recordPayment, initialState);
+  const [method, setMethod] = useState("cash");
+  const needsReference = method === "ewallet" || method === "bank_transfer";
+
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending && !state.error) {
+      onDone();
+    }
+    wasPending.current = pending;
+  }, [pending, state, onDone]);
+
+  return (
+    <form
+      action={formAction}
+      className="mt-4 space-y-3 rounded-xl border border-outline-variant bg-surface-container-high p-4"
+    >
+      <input type="hidden" name="orderId" value={orderId} />
+      <input type="hidden" name="method" value={method} />
+      <div>
+        <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Payment method</span>
+        <div className="grid grid-cols-2 gap-2">
+          {RECORD_PAYMENT_METHODS.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() => setMethod(m.value)}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                method === m.value
+                  ? "border-primary bg-primary text-on-primary"
+                  : "border-outline text-on-surface-variant hover:bg-surface-container-high"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <TextField
+        label={`Amount received (balance due $${balanceDue.toFixed(2)})`}
+        name="amount"
+        type="number"
+        step="0.01"
+        min={0.01}
+        max={balanceDue}
+        defaultValue={balanceDue}
+        required
+      />
+      {needsReference && (
+        <TextField label="Reference number" name="referenceNumber" placeholder="From the payment confirmation" required />
+      )}
+      {state.error && <p className="text-sm text-error">{state.error}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Recording…" : "Confirm payment"}
         </Button>
         <Button type="button" variant="secondary" onClick={onDone} disabled={pending}>
           Cancel

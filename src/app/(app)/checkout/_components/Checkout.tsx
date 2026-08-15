@@ -32,6 +32,7 @@ type Receipt = {
   amountPaid: number;
   referenceNumber: string;
   change: number;
+  balanceDue: number;
 };
 
 export function Checkout({
@@ -57,16 +58,20 @@ export function Checkout({
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [amount, setAmount] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [creditSale, setCreditSale] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
-  // Only cash can differ from the total (change is handed back); card,
-  // e-wallet, and bank transfer are always charged/sent the exact amount.
-  const amountNumber = method === "cash" ? Number(amount) || 0 : subtotal;
-  const needsReference = method === "ewallet" || method === "bank_transfer";
+  // Cash (change handed back) and a credit sale (paying less than the total
+  // on purpose) both need a manually entered amount; card/e-wallet/bank
+  // transfer otherwise always charge/send the exact total.
+  const amountNumber = creditSale || method === "cash" ? Number(amount) || 0 : subtotal;
+  const needsReference = (method === "ewallet" || method === "bank_transfer") && amountNumber > 0;
   const referenceMissing = needsReference && referenceNumber.trim().length === 0;
+  const balanceDue = Math.max(0, subtotal - amountNumber);
+  const billToMissing = creditSale && (customerName.trim().length === 0 || customerPhone.trim().length === 0);
 
   async function handleSubmit() {
     setSubmitError(null);
@@ -76,6 +81,7 @@ export function Checkout({
       { method, amount: amountNumber, referenceNumber: needsReference ? referenceNumber : undefined },
       fromQuoteId,
       { name: customerName, phone: customerPhone },
+      creditSale,
     );
     setSubmitting(false);
 
@@ -101,12 +107,14 @@ export function Checkout({
       amountPaid: amountNumber,
       referenceNumber: referenceNumber.trim(),
       change: result.change,
+      balanceDue,
     });
     setCart([]);
     setCustomerName("");
     setCustomerPhone("");
     setAmount("");
     setReferenceNumber("");
+    setCreditSale(false);
   }
 
   if (receipt) {
@@ -179,6 +187,12 @@ export function Checkout({
               <span>${receipt.change.toFixed(2)}</span>
             </div>
           )}
+          {receipt.balanceDue > 0 && (
+            <div className="flex justify-between font-medium text-error">
+              <span>Balance due</span>
+              <span>${receipt.balanceDue.toFixed(2)}</span>
+            </div>
+          )}
         </div>
 
         <p className="mt-4 text-center text-xs text-on-surface-variant">Thank you for your purchase!</p>
@@ -199,18 +213,32 @@ export function Checkout({
       )}
 
       <Card>
-        <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Bill to (optional)</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-on-surface-variant">
+            Bill to {creditSale ? "(required for credit sales)" : "(optional)"}
+          </h2>
+          <label className="flex items-center gap-2 text-sm text-on-surface">
+            <input
+              type="checkbox"
+              checked={creditSale}
+              onChange={(e) => setCreditSale(e.target.checked)}
+            />
+            Credit sale (partial payment)
+          </label>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <TextField
             label="Customer name"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
+            required={creditSale}
           />
           <TextField
             label="Mobile number"
             type="tel"
             value={customerPhone}
             onChange={(e) => setCustomerPhone(e.target.value)}
+            required={creditSale}
           />
         </div>
       </Card>
@@ -244,9 +272,9 @@ export function Checkout({
             </div>
           </div>
 
-          {method === "cash" && (
+          {(method === "cash" || creditSale) && (
             <TextField
-              label="Amount received"
+              label={creditSale ? "Amount paid now (optional)" : "Amount received"}
               type="number"
               step="0.01"
               value={amount}
@@ -264,13 +292,13 @@ export function Checkout({
             />
           )}
 
-          {method === "card" && (
+          {method === "card" && !creditSale && (
             <p className="text-sm text-on-surface-variant">
               Charge ${subtotal.toFixed(2)} on the terminal and attach the printed receipt.
             </p>
           )}
 
-          {method === "cash" && amountNumber > 0 && (
+          {!creditSale && method === "cash" && amountNumber > 0 && (
             <p className="text-sm text-on-surface-variant">
               Change:{" "}
               <span className="font-medium text-on-surface">
@@ -279,11 +307,23 @@ export function Checkout({
             </p>
           )}
 
+          {creditSale && (
+            <p className="text-sm text-on-surface-variant">
+              Balance due: <span className="font-medium text-error">${balanceDue.toFixed(2)}</span>
+            </p>
+          )}
+
           {submitError && <p className="text-sm text-error">{submitError}</p>}
 
           <Button
             className="w-full"
-            disabled={cart.length === 0 || submitting || amountNumber < subtotal || referenceMissing}
+            disabled={
+              cart.length === 0 ||
+              submitting ||
+              (!creditSale && amountNumber < subtotal) ||
+              referenceMissing ||
+              billToMissing
+            }
             onClick={handleSubmit}
           >
             {submitting ? "Recording sale…" : "Complete sale"}

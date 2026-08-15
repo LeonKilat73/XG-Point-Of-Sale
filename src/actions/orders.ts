@@ -235,3 +235,57 @@ export async function replaceOrder(
   revalidatePath("/orders");
   return ok;
 }
+
+const PAYMENT_METHODS = ["cash", "card", "ewallet", "bank_transfer"] as const;
+
+// Collects another installment toward a credit sale's balance -- no PIN
+// needed (money coming in, not going out/away, same posture as the initial
+// payment recorded by submitSale). Balance due is always derived from
+// existing payments, never stored, so this can't overpay past what's
+// actually still owed.
+export async function recordPayment(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staff = await getCurrentStaff();
+  if (!staff) return { error: "You must be signed in." };
+
+  const orderId = String(formData.get("orderId") ?? "");
+  const method = String(formData.get("method") ?? "");
+  const amount = Number(formData.get("amount") ?? 0);
+  const referenceNumber = String(formData.get("referenceNumber") ?? "").trim();
+
+  if (!orderId) return { error: "Missing order id." };
+  if (!(PAYMENT_METHODS as readonly string[]).includes(method)) return { error: "Invalid payment method." };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: "Enter a valid payment amount." };
+  if ((method === "ewallet" || method === "bank_transfer") && !referenceNumber) {
+    return { error: "Enter the e-wallet or bank transfer reference number." };
+  }
+
+  const supabase = await createClient();
+  const { data: order } = await supabase.from("orders").select("status, total").eq("id", orderId).single();
+  if (!order) return { error: "Order not found." };
+  if (order.status === "voided") return { error: "This order has been voided." };
+
+  const { data: existingPayments } = await supabase.from("payments").select("amount").eq("order_id", orderId);
+  const alreadyPaid = (existingPayments ?? []).reduce((sum, p) => sum + p.amount, 0);
+  const balance = Math.round((order.total - alreadyPaid) * 100) / 100;
+  if (amount > balance) {
+    return { error: `Amount exceeds the balance due of $${balance.toFixed(2)}.` };
+  }
+
+  const { error } = await supabase.from("payments").insert({
+    order_id: orderId,
+    method,
+    amount,
+    reference_number: referenceNumber || null,
+    staff_id: staff.id,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/orders");
+  return ok;
+}
