@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentStaff } from "@/lib/auth/staff";
+import { getCurrentStaff, isManagerOrAdmin } from "@/lib/auth/staff";
 import { Card } from "@/components/ui/Card";
 import { PinForm } from "./_components/PinForm";
 
@@ -11,7 +11,7 @@ export default async function SettingsPage() {
     <div className="max-w-md">
       <h1 className="text-2xl font-medium text-on-surface">Settings</h1>
 
-      {staff.role === "manager" ? (
+      {isManagerOrAdmin(staff.role) ? (
         <Card className="mt-6">
           <h2 className="mb-1 text-lg font-medium text-on-surface">Manager PIN</h2>
           <p className="mb-4 text-sm text-on-surface-variant">

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { StaffRole } from "@/lib/auth/staff";
 
-export function Nav({ role }: { role: "cashier" | "manager" }) {
+export function Nav({ role }: { role: StaffRole }) {
   const pathname = usePathname();
 
   const items = [
@@ -12,7 +13,8 @@ export function Nav({ role }: { role: "cashier" | "manager" }) {
     { href: "/quotes", label: "Quotes" },
     { href: "/orders", label: "Orders" },
     { href: "/reports", label: "Reports" },
-    ...(role === "manager" ? [{ href: "/staff", label: "Staff" }] : []),
+    ...(role === "manager" || role === "admin" ? [{ href: "/staff", label: "Staff" }] : []),
+    ...(role === "admin" ? [{ href: "/admin/analytics", label: "Analytics" }] : []),
     { href: "/settings", label: "Settings" },
   ];
 

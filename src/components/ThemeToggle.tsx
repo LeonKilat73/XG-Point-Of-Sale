@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-type Theme = "light" | "dark";
+export type Theme = "light" | "dark";
 
 const listeners = new Set<() => void>();
 
@@ -32,6 +32,12 @@ function setTheme(theme: Theme) {
 // correct when toggle() fires.
 function getServerSnapshot(): Theme | null {
   return null;
+}
+
+// Shared by anything that needs to know the current theme reactively (e.g.
+// picking chart colors) without duplicating the read/subscribe logic below.
+export function useTheme(): Theme | null {
+  return useSyncExternalStore<Theme | null>(subscribe, readTheme, getServerSnapshot);
 }
 
 export function ThemeToggle({

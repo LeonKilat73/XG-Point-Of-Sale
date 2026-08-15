@@ -2,13 +2,19 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
+export type StaffRole = "cashier" | "manager" | "admin";
+
 export type CurrentStaff = {
   id: string;
   email: string;
   fullName: string;
-  role: "cashier" | "manager";
+  role: StaffRole;
   isActive: boolean;
 };
+
+export function isManagerOrAdmin(role: StaffRole): boolean {
+  return role === "manager" || role === "admin";
+}
 
 // Cached per request (React's cache()) so multiple components/actions in the
 // same render/request share one lookup instead of hitting the DB repeatedly.
@@ -40,6 +46,6 @@ export const getCurrentStaff = cache(async (): Promise<CurrentStaff | null> => {
 export async function requireManager(): Promise<CurrentStaff> {
   const staff = await getCurrentStaff();
   if (!staff) throw new Error("You must be signed in to do that.");
-  if (staff.role !== "manager") throw new Error("Only a manager can do that.");
+  if (!isManagerOrAdmin(staff.role)) throw new Error("Only a manager can do that.");
   return staff;
 }

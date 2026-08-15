@@ -9,7 +9,7 @@ const initialState: ActionState = { error: null };
 const selectClass =
   "w-full rounded-md border border-outline bg-surface px-3.5 py-2.5 text-sm text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
 
-export function AddStaffForm() {
+export function AddStaffForm({ viewerIsAdmin }: { viewerIsAdmin: boolean }) {
   const [state, formAction, pending] = useActionState(addStaffMember, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const wasPending = useRef(false);
@@ -31,6 +31,7 @@ export function AddStaffForm() {
         <select name="role" defaultValue="cashier" className={selectClass}>
           <option value="cashier">Cashier</option>
           <option value="manager">Manager</option>
+          {viewerIsAdmin && <option value="admin">Admin</option>}
         </select>
       </label>
       {state.error && <p className="text-sm text-error">{state.error}</p>}

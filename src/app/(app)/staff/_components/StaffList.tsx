@@ -8,15 +8,28 @@ export type StaffRow = {
   id: string;
   full_name: string;
   email: string;
-  role: "cashier" | "manager";
+  role: "cashier" | "manager" | "admin";
   is_active: boolean;
 };
 
 const initialState: ActionState = { error: null };
 
-function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
+function StaffRowItem({
+  row,
+  isSelf,
+  viewerIsAdmin,
+}: {
+  row: StaffRow;
+  isSelf: boolean;
+  viewerIsAdmin: boolean;
+}) {
   const [activeState, activeAction, activePending] = useActionState(setStaffActive, initialState);
   const [roleState, roleAction, rolePending] = useActionState(setStaffRole, initialState);
+
+  // A plain manager can freely manage cashiers/managers, but only an admin
+  // can promote someone to admin or change/deactivate an existing admin --
+  // matches the restriction already enforced server-side in staff.ts.
+  const canManage = !isSelf && (row.role !== "admin" || viewerIsAdmin);
 
   return (
     <tr className="border-t border-outline-variant/60">
@@ -25,9 +38,7 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
         <p className="text-xs text-on-surface-variant">{row.email}</p>
       </td>
       <td className="px-4 py-3">
-        {isSelf ? (
-          <span className="capitalize text-on-surface-variant">{row.role}</span>
-        ) : (
+        {canManage ? (
           <form action={roleAction} className="flex items-center gap-2">
             <input type="hidden" name="staffId" value={row.id} />
             <select
@@ -38,9 +49,12 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
             >
               <option value="cashier">Cashier</option>
               <option value="manager">Manager</option>
+              {viewerIsAdmin && <option value="admin">Admin</option>}
             </select>
             {rolePending && <span className="text-xs text-on-surface-variant">Saving…</span>}
           </form>
+        ) : (
+          <span className="capitalize text-on-surface-variant">{row.role}</span>
         )}
         {roleState.error && <p className="mt-1 text-xs text-error">{roleState.error}</p>}
       </td>
@@ -58,7 +72,7 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
       <td className="px-4 py-3 text-right">
         {isSelf ? (
           <span className="text-xs text-on-surface-variant">You</span>
-        ) : (
+        ) : canManage ? (
           <form action={activeAction}>
             <input type="hidden" name="staffId" value={row.id} />
             <input type="hidden" name="active" value={(!row.is_active).toString()} />
@@ -66,6 +80,8 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
               {activePending ? "…" : row.is_active ? "Deactivate" : "Reactivate"}
             </Button>
           </form>
+        ) : (
+          <span className="text-xs text-on-surface-variant">Admin-managed</span>
         )}
         {activeState.error && <p className="mt-1 text-xs text-error">{activeState.error}</p>}
       </td>
@@ -73,7 +89,15 @@ function StaffRowItem({ row, isSelf }: { row: StaffRow; isSelf: boolean }) {
   );
 }
 
-export function StaffList({ staff, currentStaffId }: { staff: StaffRow[]; currentStaffId: string }) {
+export function StaffList({
+  staff,
+  currentStaffId,
+  viewerIsAdmin,
+}: {
+  staff: StaffRow[];
+  currentStaffId: string;
+  viewerIsAdmin: boolean;
+}) {
   if (staff.length === 0) {
     return <p className="text-sm text-on-surface-variant">No staff yet.</p>;
   }
@@ -91,7 +115,12 @@ export function StaffList({ staff, currentStaffId }: { staff: StaffRow[]; curren
         </thead>
         <tbody>
           {staff.map((row) => (
-            <StaffRowItem key={row.id} row={row} isSelf={row.id === currentStaffId} />
+            <StaffRowItem
+              key={row.id}
+              row={row}
+              isSelf={row.id === currentStaffId}
+              viewerIsAdmin={viewerIsAdmin}
+            />
           ))}
         </tbody>
       </table>
