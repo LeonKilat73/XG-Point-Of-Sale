@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { lookupSku } from "@/actions/catalog";
 import type { InventoryItem } from "@/lib/inventory";
 import { matchesQuery } from "@/lib/catalogSearch";
@@ -18,8 +18,10 @@ export type CartLine = {
   stock: number;
 };
 
+const ALL_CATEGORIES = "All";
+
 // Shared by Checkout (real sale) and the new-quote page (estimate, no
-// inventory/payment effect) -- both need the identical "scan/search an
+// inventory/payment effect) -- both need the identical "browse or scan an
 // item, build a cart" surface, so it's extracted once here rather than
 // kept as two copies that would drift.
 export function CartBuilder({
@@ -34,11 +36,21 @@ export function CartBuilder({
   const [skuInput, setSkuInput] = useState("");
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupPending, setLookupPending] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES);
   const skuInputRef = useRef<HTMLInputElement>(null);
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of catalog) if (item.category) set.add(item.category);
+    return [ALL_CATEGORIES, ...[...set].sort()];
+  }, [catalog]);
+
   const query = skuInput.trim();
-  const matches = query.length >= 2 ? catalog.filter((item) => matchesQuery(item, query)).slice(0, 8) : [];
+  const browseList = catalog.filter(
+    (item) =>
+      (activeCategory === ALL_CATEGORIES || item.category === activeCategory) &&
+      (query.length === 0 || matchesQuery(item, query)),
+  );
 
   function addToCart(item: {
     id: string;
@@ -77,7 +89,6 @@ export function CartBuilder({
   async function handleLookup(e: React.FormEvent) {
     e.preventDefault();
     setLookupError(null);
-    setShowDropdown(false);
     setLookupPending(true);
     const result = await lookupSku(skuInput);
     setLookupPending(false);
@@ -92,17 +103,16 @@ export function CartBuilder({
     skuInputRef.current?.focus();
   }
 
-  // Picking a name/category match from the dropdown adds it straight from
-  // the already-fetched catalog snapshot -- no extra round trip. Final
-  // stock accuracy is still enforced by inventory at the moment a real
-  // sale is submitted, so a slightly stale snapshot here can't cause an
-  // oversell -- for a quote it's advisory only anyway.
+  // Tapping a row in the browse list adds it straight from the
+  // already-fetched catalog snapshot -- no extra round trip. Final stock
+  // accuracy is still enforced by inventory at the moment a real sale is
+  // submitted, so a slightly stale snapshot here can't cause an oversell --
+  // for a quote it's advisory only anyway. Deliberately doesn't clear the
+  // search/category filter, so tapping several items from the same
+  // category in a row doesn't require re-filtering each time.
   function handlePickMatch(item: InventoryItem) {
     addToCart(item);
-    setSkuInput("");
-    setShowDropdown(false);
     setLookupError(null);
-    skuInputRef.current?.focus();
   }
 
   function updateQuantity(itemId: string, quantity: number) {
@@ -120,62 +130,77 @@ export function CartBuilder({
   return (
     <div className="space-y-4">
       <Card>
-        <form onSubmit={handleLookup} className="flex items-end gap-3">
-          <div className="relative flex-1">
-            <TextField
-              ref={skuInputRef}
-              label="Search by SKU, name, or category"
-              name="sku"
-              value={skuInput}
-              onChange={(e) => {
-                setSkuInput(e.target.value);
-                setShowDropdown(e.target.value.trim().length >= 2);
-              }}
-              onFocus={() => setShowDropdown(query.length >= 2)}
-              onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-              autoFocus
-              autoComplete="off"
-            />
-            {showDropdown && matches.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-outline-variant bg-surface shadow-lg">
-                {matches.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handlePickMatch(item)}
-                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-surface-container-high"
-                  >
-                    <div>
-                      <p className="font-medium text-on-surface">
-                        {item.name}
-                        {item.isBundle && " · bundle"}
-                      </p>
-                      <p className="font-mono text-xs text-on-surface-variant">
-                        {item.sku}
-                        {item.category ? ` · ${item.category}` : ""}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right text-xs text-on-surface-variant">
-                      <p>${(item.unitPrice ?? 0).toFixed(2)}</p>
-                      <p>{item.stock} in stock</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+        {categories.length > 1 && (
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  activeCategory === cat
+                    ? "border border-primary bg-primary-container text-on-primary-container"
+                    : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
+        )}
+
+        <form onSubmit={handleLookup} className="flex items-end gap-3">
+          <TextField
+            ref={skuInputRef}
+            label="Search by SKU, name, or category"
+            name="sku"
+            value={skuInput}
+            onChange={(e) => setSkuInput(e.target.value)}
+            autoFocus
+            autoComplete="off"
+            className="flex-1"
+          />
           <Button type="submit" disabled={lookupPending}>
             {lookupPending ? "Looking up…" : "Add"}
           </Button>
         </form>
         {lookupError && <p className="mt-2 text-sm text-error">{lookupError}</p>}
+
+        <div className="mt-3 max-h-72 overflow-y-auto rounded-lg border border-outline-variant">
+          {browseList.length === 0 ? (
+            <p className="p-3 text-sm text-on-surface-variant">No items match.</p>
+          ) : (
+            browseList.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handlePickMatch(item)}
+                className="flex w-full items-center justify-between gap-3 border-b border-outline-variant/60 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-surface-container-high"
+              >
+                <div>
+                  <p className="font-medium text-on-surface">
+                    {item.name}
+                    {item.isBundle && " · bundle"}
+                  </p>
+                  <p className="font-mono text-xs text-on-surface-variant">
+                    {item.sku}
+                    {item.category ? ` · ${item.category}` : ""}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right text-xs text-on-surface-variant">
+                  <p>${(item.unitPrice ?? 0).toFixed(2)}</p>
+                  <p>{item.stock} in stock</p>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
       </Card>
 
       <Card>
         <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Cart</h2>
         {cart.length === 0 ? (
-          <p className="text-sm text-on-surface-variant">No items yet — search or scan a SKU above.</p>
+          <p className="text-sm text-on-surface-variant">No items yet — tap or search above.</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-on-surface-variant">
