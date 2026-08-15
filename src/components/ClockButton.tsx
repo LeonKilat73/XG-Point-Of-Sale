@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { clockIn, clockOut } from "@/actions/shifts";
-
-type OpenShift = { id: string; clock_in: string } | null;
+import { useShift } from "./ShiftContext";
 
 function formatElapsed(clockInIso: string, now: number) {
   const ms = now - new Date(clockInIso).getTime();
@@ -13,9 +11,8 @@ function formatElapsed(clockInIso: string, now: number) {
   return `${hours}h ${minutes}m`;
 }
 
-export function ClockButton({ initialShift }: { initialShift: OpenShift }) {
-  const [shift, setShift] = useState<OpenShift>(initialShift);
-  const [pending, setPending] = useState(false);
+export function ClockButton() {
+  const { shift, pending, toggle } = useShift();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -23,21 +20,6 @@ export function ClockButton({ initialShift }: { initialShift: OpenShift }) {
     const interval = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(interval);
   }, [shift]);
-
-  async function toggle() {
-    setPending(true);
-    if (shift) {
-      const result = await clockOut();
-      if (!result.error) setShift(null);
-    } else {
-      const result = await clockIn();
-      if (!result.error) {
-        setNow(Date.now());
-        setShift({ id: "", clock_in: new Date().toISOString() });
-      }
-    }
-    setPending(false);
-  }
 
   const elapsed = shift ? formatElapsed(shift.clock_in, now) : "";
 

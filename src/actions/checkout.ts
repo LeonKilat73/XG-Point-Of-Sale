@@ -127,3 +127,28 @@ export async function submitSale(
   const change = payment.method === "cash" && payment.amount > subtotal ? payment.amount - subtotal : 0;
   return { orderId, change };
 }
+
+export type MySalesTodaySummary = { total: number; count: number };
+
+// Personal-only by design (per the shop owner) -- shop-wide totals belong
+// in /admin/analytics for managers/admins, not on every cashier's own
+// checkout screen. fromIso/toIso are full UTC instants already converted
+// from the browser's local calendar day (see Checkout.tsx) -- the server
+// has no way to know the shop's timezone, same reasoning as the Orders/
+// Shifts date filters.
+export async function getMySalesToday(fromIso: string, toIso: string): Promise<MySalesTodaySummary> {
+  const staff = await getCurrentStaff();
+  if (!staff) return { total: 0, count: 0 };
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("orders")
+    .select("total")
+    .eq("staff_id", staff.id)
+    .eq("status", "completed")
+    .gte("created_at", fromIso)
+    .lte("created_at", toIso);
+
+  const orders = data ?? [];
+  return { total: orders.reduce((sum, o) => sum + o.total, 0), count: orders.length };
+}

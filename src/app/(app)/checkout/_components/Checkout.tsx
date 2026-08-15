@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { submitSale, type PaymentMethod } from "@/actions/checkout";
+import { useEffect, useState } from "react";
+import { getMySalesToday, submitSale, type MySalesTodaySummary, type PaymentMethod } from "@/actions/checkout";
 import type { InventoryItem } from "@/lib/inventory";
 import { CartBuilder, type CartLine } from "@/components/CartBuilder";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +35,16 @@ type Receipt = {
   balanceDue: number;
 };
 
+// Local calendar day, not UTC -- the server has no way to know the shop's
+// timezone, so "today" has to be decided here in the browser, same
+// reasoning as the Orders/Shifts/Analytics date filters.
+function todayBoundsIso(): { from: string; to: string } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  return { from: start.toISOString(), to: end.toISOString() };
+}
+
 export function Checkout({
   catalog,
   cashierName,
@@ -62,6 +72,18 @@ export function Checkout({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [mySalesToday, setMySalesToday] = useState<MySalesTodaySummary>({ total: 0, count: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    const { from, to } = todayBoundsIso();
+    getMySalesToday(from, to).then((summary) => {
+      if (!cancelled) setMySalesToday(summary);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   // Cash (change handed back) and a credit sale (paying less than the total
@@ -115,6 +137,9 @@ export function Checkout({
     setAmount("");
     setReferenceNumber("");
     setCreditSale(false);
+
+    const { from, to } = todayBoundsIso();
+    getMySalesToday(from, to).then(setMySalesToday);
   }
 
   if (receipt) {
@@ -206,6 +231,16 @@ export function Checkout({
 
   return (
     <div className="space-y-4">
+      <Card className="flex items-center justify-between py-4">
+        <p className="text-sm text-on-surface-variant">My sales today</p>
+        <div className="text-right">
+          <p className="text-lg font-medium text-on-surface">${mySalesToday.total.toFixed(2)}</p>
+          <p className="text-xs text-on-surface-variant">
+            {mySalesToday.count} sale{mySalesToday.count === 1 ? "" : "s"}
+          </p>
+        </div>
+      </Card>
+
       {quoteNotice && (
         <div className="rounded-lg border border-primary/30 bg-primary-container/30 px-4 py-2 text-sm text-on-surface">
           {quoteNotice}

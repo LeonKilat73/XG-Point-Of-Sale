@@ -12,8 +12,12 @@ export function Nav({ role }: { role: StaffRole }) {
     { href: "/catalog", label: "Catalog" },
     { href: "/quotes", label: "Quotes" },
     { href: "/orders", label: "Orders" },
-    { href: "/reports", label: "Reports" },
-    ...(role === "manager" || role === "admin" ? [{ href: "/staff", label: "Staff" }] : []),
+    ...(role === "manager" || role === "admin"
+      ? [
+          { href: "/staff", label: "Staff" },
+          { href: "/shifts", label: "Shifts" },
+        ]
+      : []),
     ...(role === "admin" ? [{ href: "/admin/analytics", label: "Analytics" }] : []),
     { href: "/settings", label: "Settings" },
   ];
