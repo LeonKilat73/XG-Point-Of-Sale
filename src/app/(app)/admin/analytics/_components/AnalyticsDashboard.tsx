@@ -19,9 +19,17 @@ import {
   bucketKey,
   bucketLabel,
   generateBuckets,
+  generateBucketsInRange,
   PERIOD_OPTIONS,
   type Period,
 } from "@/lib/analyticsPeriods";
+
+function toDateInputValue(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export type OrderRow = {
   id: string;
@@ -99,26 +107,71 @@ export function AnalyticsDashboard({
   lines,
   returns,
   warrantyReplacements,
+  ordersTruncated,
+  oldestFetchedOrderDate,
 }: {
   orders: OrderRow[];
   payments: PaymentRow[];
   lines: LineRow[];
   returns: ReturnRow[];
   warrantyReplacements: WarrantyReplacementRow[];
+  ordersTruncated: boolean;
+  oldestFetchedOrderDate: string | null;
 }) {
   const [period, setPeriod] = useState<Period>("month");
+  const [rangeMode, setRangeMode] = useState<"rolling" | "custom">("rolling");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const theme = useTheme();
   const isDark = theme === "dark";
   const ink = isDark ? CHART_INK.dark : CHART_INK.light;
   const methodColors = isDark ? METHOD_COLORS_DARK : METHOD_COLORS_LIGHT;
 
   const now = useMemo(() => new Date(), []);
-  const buckets = useMemo(() => generateBuckets(period, now), [period, now]);
-  const windowStartDate = buckets[0];
+  // Custom mode defaults to the trailing 30 days whenever the user hasn't
+  // typed a from/to yet, so the date inputs are never blank -- picked once
+  // from `now`, not a fresh Date() on every render (see the react-hooks
+  // purity note on customerBalances below for why that matters).
+  const defaultRangeStart = useMemo(() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 29);
+    return d;
+  }, [now]);
+  const effectiveFrom = customFrom || toDateInputValue(defaultRangeStart);
+  const effectiveTo = customTo || toDateInputValue(now);
+
+  const { buckets, windowStartDate, windowEndDate } = useMemo(() => {
+    if (rangeMode === "custom") {
+      const start = new Date(`${effectiveFrom}T00:00:00`);
+      const end = new Date(`${effectiveTo}T23:59:59.999`);
+      const [rangeStart, rangeEnd] = start <= end ? [start, end] : [end, start];
+      return {
+        buckets: generateBucketsInRange(period, rangeStart, rangeEnd),
+        windowStartDate: rangeStart,
+        windowEndDate: rangeEnd,
+      };
+    }
+    const rolling = generateBuckets(period, now);
+    return { buckets: rolling, windowStartDate: rolling[0], windowEndDate: now };
+  }, [rangeMode, effectiveFrom, effectiveTo, period, now]);
+
+  // The orders fetch is capped server-side (see analytics/page.tsx) -- if
+  // that cap was actually hit AND the selected range reaches back further
+  // than the oldest order that made it into the fetch, older orders in the
+  // window were silently dropped rather than genuinely absent. Surface that
+  // instead of showing a chart that looks complete but isn't.
+  const rangeMayBeIncomplete =
+    ordersTruncated && oldestFetchedOrderDate !== null && windowStartDate < new Date(oldestFetchedOrderDate);
 
   const completed = useMemo(
-    () => orders.filter((o) => o.status === "completed" && new Date(o.created_at) >= windowStartDate),
-    [orders, windowStartDate],
+    () =>
+      orders.filter(
+        (o) =>
+          o.status === "completed" &&
+          new Date(o.created_at) >= windowStartDate &&
+          new Date(o.created_at) <= windowEndDate,
+      ),
+    [orders, windowStartDate, windowEndDate],
   );
   const completedIds = useMemo(() => new Set(completed.map((o) => o.id)), [completed]);
 
@@ -178,21 +231,31 @@ export function AnalyticsDashboard({
   const voids = useMemo(
     () =>
       orders.filter(
-        (o) => o.status === "voided" && o.voided_at && new Date(o.voided_at) >= windowStartDate,
+        (o) =>
+          o.status === "voided" &&
+          o.voided_at &&
+          new Date(o.voided_at) >= windowStartDate &&
+          new Date(o.voided_at) <= windowEndDate,
       ),
-    [orders, windowStartDate],
+    [orders, windowStartDate, windowEndDate],
   );
   const voidsTotal = voids.reduce((sum, o) => sum + o.total, 0);
 
   const refundsInWindow = useMemo(
-    () => returns.filter((r) => new Date(r.created_at) >= windowStartDate),
-    [returns, windowStartDate],
+    () =>
+      returns.filter(
+        (r) => new Date(r.created_at) >= windowStartDate && new Date(r.created_at) <= windowEndDate,
+      ),
+    [returns, windowStartDate, windowEndDate],
   );
   const refundsTotal = refundsInWindow.reduce((sum, r) => sum + r.refund_amount, 0);
 
   const replacementsInWindow = useMemo(
-    () => warrantyReplacements.filter((w) => new Date(w.created_at) >= windowStartDate),
-    [warrantyReplacements, windowStartDate],
+    () =>
+      warrantyReplacements.filter(
+        (w) => new Date(w.created_at) >= windowStartDate && new Date(w.created_at) <= windowEndDate,
+      ),
+    [warrantyReplacements, windowStartDate, windowEndDate],
   );
   const replacementsValue = replacementsInWindow.reduce((sum, w) => sum + w.unit_price * w.quantity, 0);
 
@@ -238,8 +301,14 @@ export function AnalyticsDashboard({
   const replacementsUnits = replacementsInWindow.reduce((sum, w) => sum + w.quantity, 0);
 
   const quotesInWindow = useMemo(
-    () => orders.filter((o) => o.status === "quote" && new Date(o.created_at) >= windowStartDate),
-    [orders, windowStartDate],
+    () =>
+      orders.filter(
+        (o) =>
+          o.status === "quote" &&
+          new Date(o.created_at) >= windowStartDate &&
+          new Date(o.created_at) <= windowEndDate,
+      ),
+    [orders, windowStartDate, windowEndDate],
   );
   const quotesConverted = quotesInWindow.filter((q) => q.converted_order_id);
   const conversionRate = quotesInWindow.length > 0 ? (quotesConverted.length / quotesInWindow.length) * 100 : 0;
@@ -249,9 +318,9 @@ export function AnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-sm font-medium text-on-surface-variant">Period</span>
+          <span className="mr-1 text-sm font-medium text-on-surface-variant">Bucket by</span>
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -267,6 +336,67 @@ export function AnalyticsDashboard({
             </button>
           ))}
         </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <span className="mr-1 text-sm font-medium text-on-surface-variant">Range</span>
+            <div className="mt-1 inline-flex gap-2">
+              {(["rolling", "custom"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setRangeMode(m)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                    rangeMode === m
+                      ? "bg-primary text-on-primary"
+                      : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
+                  }`}
+                >
+                  {m === "rolling" ? `Last ${PERIOD_OPTIONS.find((p) => p.value === period)?.label.toLowerCase()}s` : "Custom range"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {rangeMode === "custom" && (
+            <>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">From</span>
+                <input
+                  type="date"
+                  value={effectiveFrom}
+                  max={effectiveTo}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">To</span>
+                <input
+                  type="date"
+                  value={effectiveTo}
+                  min={effectiveFrom}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            </>
+          )}
+
+          <p className="text-xs text-on-surface-variant">
+            Showing {windowStartDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+            {" – "}
+            {windowEndDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+          </p>
+        </div>
+
+        {rangeMayBeIncomplete && (
+          <p className="rounded-lg border border-error/30 bg-error-container/15 px-3 py-2 text-xs text-error">
+            This shop has more order history than fits in one load -- results before{" "}
+            {new Date(oldestFetchedOrderDate!).toLocaleDateString()} may be incomplete. Narrow the range to see
+            everything.
+          </p>
+        )}
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

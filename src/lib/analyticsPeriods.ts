@@ -95,3 +95,23 @@ export function generateBuckets(period: Period, now: Date = new Date()): Date[] 
   }
   return buckets;
 }
+
+// Same idea as generateBuckets, but for an explicit [start, end] range
+// instead of a fixed-count lookback from "now" -- backs the Analytics
+// "custom range" mode, where the user picked specific from/to dates rather
+// than "last N days/weeks/...". Capped so a mistyped hundred-year range
+// (or day-granularity over a multi-decade span) can't generate an
+// unbounded array -- a chart with thousands of bars isn't useful anyway.
+const MAX_RANGE_BUCKETS = 400;
+
+export function generateBucketsInRange(period: Period, start: Date, end: Date): Date[] {
+  const first = bucketStart(start, period);
+  const last = bucketStart(end, period);
+  const buckets: Date[] = [];
+  let cur = first;
+  while (cur <= last && buckets.length < MAX_RANGE_BUCKETS) {
+    buckets.push(cur);
+    cur = addBuckets(cur, period, 1);
+  }
+  return buckets.length > 0 ? buckets : [first];
+}

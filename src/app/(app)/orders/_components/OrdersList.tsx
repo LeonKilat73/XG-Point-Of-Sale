@@ -1,10 +1,25 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { recordPayment, refundOrder, replaceOrder, voidOrder, type ActionState } from "@/actions/orders";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
+
+// dateFrom/dateTo arrive as full UTC instants (see orders/page.tsx) --
+// reformat to the plain yyyy-mm-dd a <input type="date"> wants, in the
+// browser's own local timezone, so the date shown is the same calendar day
+// the user originally picked rather than shifted by however far the shop's
+// timezone sits from UTC.
+function toLocalDateInputValue(iso: string): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -36,13 +51,47 @@ function receiptNumber(id: string) {
   return id.slice(0, 8).toUpperCase();
 }
 
-export function OrdersList({ orders }: { orders: OrderRow[] }) {
+export function OrdersList({
+  orders,
+  dateFrom,
+  dateTo,
+  truncated,
+  fetchLimit,
+}: {
+  orders: OrderRow[];
+  dateFrom: string;
+  dateTo: string;
+  truncated: boolean;
+  fetchLimit: number;
+}) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [voiding, setVoiding] = useState<string | null>(null);
   const [refundingLine, setRefundingLine] = useState<string | null>(null);
   const [replacingLine, setReplacingLine] = useState<string | null>(null);
   const [payingOrder, setPayingOrder] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const hasDateFilter = Boolean(dateFrom || dateTo);
+  const dateFromLocal = dateFrom ? toLocalDateInputValue(dateFrom) : "";
+  const dateToLocal = dateTo ? toLocalDateInputValue(dateTo) : "";
+  const router = useRouter();
+
+  // Converts the two local-calendar-day inputs to the correct UTC instants
+  // before navigating -- the server has no way to know the shop's
+  // timezone, so this has to happen here, in the browser, using the
+  // browser's own offset. A plain yyyy-mm-dd from the input, parsed
+  // without a "Z" suffix, is interpreted by the JS Date constructor as
+  // local time, which is exactly what's wanted.
+  function handleDateFilterSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const fromVal = (form.elements.namedItem("from") as HTMLInputElement).value;
+    const toVal = (form.elements.namedItem("to") as HTMLInputElement).value;
+    const params = new URLSearchParams();
+    if (fromVal) params.set("from", new Date(`${fromVal}T00:00:00`).toISOString());
+    if (toVal) params.set("to", new Date(`${toVal}T23:59:59.999`).toISOString());
+    const qs = params.toString();
+    router.push(qs ? `/orders?${qs}` : "/orders");
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -66,11 +115,60 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
           onChange={(e) => setQuery(e.target.value)}
           autoComplete="off"
         />
+
+        <form
+          key={`${dateFrom}|${dateTo}`}
+          onSubmit={handleDateFilterSubmit}
+          className="mt-3 flex flex-wrap items-end gap-3"
+        >
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">From</span>
+            <input
+              type="date"
+              name="from"
+              defaultValue={dateFromLocal}
+              className="rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">To</span>
+            <input
+              type="date"
+              name="to"
+              defaultValue={dateToLocal}
+              className="rounded-md border border-outline bg-surface px-3 py-2 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </label>
+          <Button type="submit" variant="secondary">
+            Filter by date
+          </Button>
+          {hasDateFilter && (
+            <Link href="/orders" className="text-sm text-on-surface-variant underline underline-offset-2">
+              Clear
+            </Link>
+          )}
+        </form>
+        {hasDateFilter && (
+          <p className="mt-2 text-xs text-on-surface-variant">
+            Showing orders {dateFromLocal ? `from ${dateFromLocal} ` : ""}
+            {dateToLocal ? `through ${dateToLocal}` : "onward"}
+            {orders.length > 0 && ` (${orders.length} found)`}.
+          </p>
+        )}
+        {truncated && (
+          <p className="mt-2 text-xs text-error">
+            More than {fetchLimit} orders match -- narrow the date range to see everything.
+          </p>
+        )}
       </Card>
 
       {filtered.length === 0 ? (
         <p className="text-sm text-on-surface-variant">
-          {orders.length === 0 ? "No orders yet." : "No orders match that search."}
+          {orders.length === 0
+            ? hasDateFilter
+              ? "No orders in that date range."
+              : "No orders yet."
+            : "No orders match that search."}
         </p>
       ) : (
         <div className="space-y-3">

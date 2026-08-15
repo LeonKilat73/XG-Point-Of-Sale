@@ -18,18 +18,28 @@ export default async function AnalyticsPage() {
   const supabase = await createClient();
 
   // Capped, computed-in-JS aggregation -- same pattern as the existing
-  // /reports page, just a higher cap since a dashboard spans more history
-  // than three rollup cards. Stops scaling if order volume gets much
-  // larger; fine for now, not worth pre-optimizing.
-  const { data: orders } = await supabase
+  // /reports page. Raised well above the old 5000 now that Analytics
+  // supports picking an arbitrary past date range (not just a rolling
+  // window from today), so a shop with real multi-year history doesn't
+  // silently lose its oldest data to the cap. Still a cap, not unlimited --
+  // `count: "exact"` lets the client warn if a selected range's start
+  // predates what actually got fetched, rather than quietly showing a
+  // partial/wrong chart.
+  const ORDERS_CAP = 20000;
+  const { data: orders, count: ordersCount } = await supabase
     .from("orders")
-    .select("id, status, total, created_at, customer_name, customer_phone, void_reason, voided_at, converted_order_id")
+    .select(
+      "id, status, total, created_at, customer_name, customer_phone, void_reason, voided_at, converted_order_id",
+      { count: "exact" },
+    )
     .order("created_at", { ascending: false })
-    .limit(5000)
+    .limit(ORDERS_CAP)
     .returns<OrderRow[]>();
 
   const allOrders = orders ?? [];
   const orderIds = allOrders.map((o) => o.id);
+  const ordersTruncated = (ordersCount ?? 0) > ORDERS_CAP;
+  const oldestFetchedOrderDate = allOrders.length > 0 ? allOrders[allOrders.length - 1].created_at : null;
 
   const { data: payments } =
     orderIds.length > 0
@@ -56,7 +66,7 @@ export default async function AnalyticsPage() {
     .from("returns")
     .select("order_line_id, quantity, refund_amount, reason, created_at, staff:staff_id(full_name), order_lines(sku, name)")
     .order("created_at", { ascending: false })
-    .limit(2000)
+    .limit(10000)
     .returns<ReturnRow[]>();
 
   // Also independent of the orders window -- same reasoning as returns above.
@@ -64,7 +74,7 @@ export default async function AnalyticsPage() {
     .from("warranty_replacements")
     .select("quantity, unit_price, reason, created_at, staff:staff_id(full_name), sku, name")
     .order("created_at", { ascending: false })
-    .limit(2000)
+    .limit(10000)
     .returns<WarrantyReplacementRow[]>();
 
   return (
@@ -81,6 +91,8 @@ export default async function AnalyticsPage() {
           lines={lines ?? []}
           returns={returns ?? []}
           warrantyReplacements={warrantyReplacements ?? []}
+          ordersTruncated={ordersTruncated}
+          oldestFetchedOrderDate={oldestFetchedOrderDate}
         />
       </div>
     </div>
