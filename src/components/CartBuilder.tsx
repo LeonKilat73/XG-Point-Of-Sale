@@ -115,11 +115,11 @@ export function CartBuilder({
     setLookupError(null);
   }
 
+  // Quantity edits never remove a line, even a momentary 0/empty value
+  // while backspacing to retype a number -- only the explicit Remove
+  // button does that. QuantityInput below withholds invalid values until
+  // blur/Enter instead of committing on every keystroke.
   function updateQuantity(itemId: string, quantity: number) {
-    if (quantity <= 0) {
-      onCartChange((prev) => prev.filter((line) => line.itemId !== itemId));
-      return;
-    }
     onCartChange((prev) => prev.map((line) => (line.itemId === itemId ? { ...line, quantity } : line)));
   }
 
@@ -226,12 +226,9 @@ export function CartBuilder({
                     )}
                   </td>
                   <td className="py-2">
-                    <input
-                      type="number"
-                      min={1}
+                    <QuantityInput
                       value={line.quantity}
-                      onChange={(e) => updateQuantity(line.itemId, Number(e.target.value))}
-                      className="w-16 rounded border border-outline bg-surface px-2 py-1 text-on-surface"
+                      onCommit={(quantity) => updateQuantity(line.itemId, quantity)}
                     />
                   </td>
                   <td className="py-2 text-right">${line.unitPrice.toFixed(2)}</td>
@@ -252,5 +249,43 @@ export function CartBuilder({
         )}
       </Card>
     </div>
+  );
+}
+
+// Buffers the raw typed text separately from the committed cart quantity,
+// so backspacing "1" to retype a number doesn't briefly commit 0/empty --
+// updateQuantity only ever runs on blur/Enter with a validated positive
+// integer. An invalid or empty value on blur reverts to the last committed
+// quantity rather than removing the line; only the Remove button does that.
+// `draft` is null while not actively editing, so the input just mirrors
+// `value` directly (no effect needed to keep it in sync when the cart
+// changes some other way, e.g. tapping the same item again elsewhere).
+function QuantityInput({ value, onCommit }: { value: number; onCommit: (quantity: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  function commit() {
+    if (draft === null) return;
+    const parsed = parseInt(draft, 10);
+    if (Number.isFinite(parsed) && parsed >= 1 && parsed !== value) {
+      onCommit(parsed);
+    }
+    setDraft(null);
+  }
+
+  return (
+    <input
+      type="number"
+      min={1}
+      value={draft ?? String(value)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        }
+      }}
+      className="w-16 rounded border border-outline bg-surface px-2 py-1 text-on-surface"
+    />
   );
 }
