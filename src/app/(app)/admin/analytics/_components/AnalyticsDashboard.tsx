@@ -44,6 +44,15 @@ export type ReturnRow = {
   staff: { full_name: string } | { full_name: string }[] | null;
   order_lines: { sku: string; name: string } | { sku: string; name: string }[] | null;
 };
+export type WarrantyReplacementRow = {
+  quantity: number;
+  unit_price: number;
+  reason: string | null;
+  created_at: string;
+  staff: { full_name: string } | { full_name: string }[] | null;
+  sku: string;
+  name: string;
+};
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -88,11 +97,13 @@ export function AnalyticsDashboard({
   payments,
   lines,
   returns,
+  warrantyReplacements,
 }: {
   orders: OrderRow[];
   payments: PaymentRow[];
   lines: LineRow[];
   returns: ReturnRow[];
+  warrantyReplacements: WarrantyReplacementRow[];
 }) {
   const [period, setPeriod] = useState<Period>("month");
   const theme = useTheme();
@@ -178,6 +189,13 @@ export function AnalyticsDashboard({
   );
   const refundsTotal = refundsInWindow.reduce((sum, r) => sum + r.refund_amount, 0);
 
+  const replacementsInWindow = useMemo(
+    () => warrantyReplacements.filter((w) => new Date(w.created_at) >= windowStartDate),
+    [warrantyReplacements, windowStartDate],
+  );
+  const replacementsValue = replacementsInWindow.reduce((sum, w) => sum + w.unit_price * w.quantity, 0);
+  const replacementsUnits = replacementsInWindow.reduce((sum, w) => sum + w.quantity, 0);
+
   const quotesInWindow = useMemo(
     () => orders.filter((o) => o.status === "quote" && new Date(o.created_at) >= windowStartDate),
     [orders, windowStartDate],
@@ -210,7 +228,7 @@ export function AnalyticsDashboard({
         </div>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <p className="text-sm text-on-surface-variant">Revenue</p>
           <p className="mt-1 text-2xl font-medium text-on-surface">${totalRevenue.toFixed(2)}</p>
@@ -230,6 +248,13 @@ export function AnalyticsDashboard({
           <p className="mt-1 text-2xl font-medium text-on-surface">${refundsTotal.toFixed(2)}</p>
           <p className="mt-1 text-xs text-on-surface-variant">
             {refundsInWindow.length} return{refundsInWindow.length === 1 ? "" : "s"}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-sm text-on-surface-variant">Replaced</p>
+          <p className="mt-1 text-2xl font-medium text-on-surface">${replacementsValue.toFixed(2)}</p>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            {replacementsUnits} unit{replacementsUnits === 1 ? "" : "s"}
           </p>
         </Card>
         <Card>
@@ -364,7 +389,7 @@ export function AnalyticsDashboard({
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Voids</h2>
           {voids.length === 0 ? (
@@ -414,6 +439,36 @@ export function AnalyticsDashboard({
                       </p>
                     </div>
                     <span className="text-on-surface">${r.refund_amount.toFixed(2)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Warranty replacements</h2>
+          {replacementsInWindow.length === 0 ? (
+            <p className="text-sm text-on-surface-variant">No warranty replacements in this period.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {replacementsInWindow.slice(0, 10).map((w, i) => {
+                const staff = Array.isArray(w.staff) ? w.staff[0] : w.staff;
+                return (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between border-b border-outline-variant/60 pb-2 last:border-0 last:pb-0"
+                  >
+                    <div>
+                      <p className="text-on-surface">
+                        {w.quantity} × {w.name}
+                      </p>
+                      <p className="text-xs text-on-surface-variant">
+                        {new Date(w.created_at).toLocaleDateString()} · {staff?.full_name ?? "Unknown staff"}
+                        {w.reason && ` — ${w.reason}`}
+                      </p>
+                    </div>
+                    <span className="text-on-surface">${(w.unit_price * w.quantity).toFixed(2)}</span>
                   </li>
                 );
               })}

@@ -7,6 +7,7 @@ import {
   type PaymentRow,
   type LineRow,
   type ReturnRow,
+  type WarrantyReplacementRow,
 } from "./_components/AnalyticsDashboard";
 
 export default async function AnalyticsPage() {
@@ -58,6 +59,14 @@ export default async function AnalyticsPage() {
     .limit(2000)
     .returns<ReturnRow[]>();
 
+  // Also independent of the orders window -- same reasoning as returns above.
+  const { data: warrantyReplacements } = await supabase
+    .from("warranty_replacements")
+    .select("quantity, unit_price, reason, created_at, staff:staff_id(full_name), sku, name")
+    .order("created_at", { ascending: false })
+    .limit(2000)
+    .returns<WarrantyReplacementRow[]>();
+
   return (
     <div>
       <h1 className="text-2xl font-medium text-on-surface">Analytics</h1>
@@ -66,7 +75,13 @@ export default async function AnalyticsPage() {
       </p>
 
       <div className="mt-6">
-        <AnalyticsDashboard orders={allOrders} payments={payments ?? []} lines={lines ?? []} returns={returns ?? []} />
+        <AnalyticsDashboard
+          orders={allOrders}
+          payments={payments ?? []}
+          lines={lines ?? []}
+          returns={returns ?? []}
+          warrantyReplacements={warrantyReplacements ?? []}
+        />
       </div>
     </div>
   );

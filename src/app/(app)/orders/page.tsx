@@ -6,7 +6,7 @@ export default async function OrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, subtotal, total, customer_name, customer_phone, created_at, voided_at, void_reason, staff:staff_id(full_name), order_lines(id, sku, name, quantity, unit_price), payments(method, reference_number), returns(order_line_id, quantity, refund_amount, reason, created_at)",
+      "id, status, subtotal, total, customer_name, customer_phone, created_at, voided_at, void_reason, staff:staff_id(full_name), order_lines(id, sku, name, quantity, unit_price), payments(method, reference_number), returns(order_line_id, quantity, refund_amount, reason, created_at), warranty_replacements(original_order_line_id, quantity)",
     )
     // Orders is real sales history -- quotes share this table (status =
     // 'quote') but live on their own /quotes page, so they're excluded here.

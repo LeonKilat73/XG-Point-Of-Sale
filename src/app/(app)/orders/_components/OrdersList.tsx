@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { refundOrder, voidOrder, type ActionState } from "@/actions/orders";
+import { refundOrder, replaceOrder, voidOrder, type ActionState } from "@/actions/orders";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
@@ -27,6 +27,7 @@ export type OrderRow = {
   order_lines: { id: string; sku: string; name: string; quantity: number; unit_price: number }[];
   payments: { method: string; reference_number: string | null }[];
   returns: { order_line_id: string; quantity: number; refund_amount: number; reason: string | null; created_at: string }[];
+  warranty_replacements: { original_order_line_id: string; quantity: number }[];
 };
 
 const initialState: ActionState = { error: null };
@@ -39,6 +40,7 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [voiding, setVoiding] = useState<string | null>(null);
   const [refundingLine, setRefundingLine] = useState<string | null>(null);
+  const [replacingLine, setReplacingLine] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -115,7 +117,10 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
                           const returnedQty = order.returns
                             .filter((r) => r.order_line_id === line.id)
                             .reduce((sum, r) => sum + r.quantity, 0);
-                          const remaining = line.quantity - returnedQty;
+                          const replacedQty = order.warranty_replacements
+                            .filter((w) => w.original_order_line_id === line.id)
+                            .reduce((sum, w) => sum + w.quantity, 0);
+                          const remaining = line.quantity - returnedQty - replacedQty;
 
                           return (
                             <li key={line.id}>
@@ -124,17 +129,29 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
                                   {line.quantity} × {line.name} ({line.sku}) — $
                                   {(line.unit_price * line.quantity).toFixed(2)}
                                   {returnedQty > 0 && ` — ${returnedQty} refunded`}
+                                  {replacedQty > 0 && ` — ${replacedQty} replaced`}
                                 </span>
                                 {!isVoided && remaining > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setRefundingLine(refundingLine === line.id ? null : line.id)
-                                    }
-                                    className="shrink-0 text-xs text-error underline underline-offset-2"
-                                  >
-                                    Refund
-                                  </button>
+                                  <span className="flex shrink-0 gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setRefundingLine(refundingLine === line.id ? null : line.id)
+                                      }
+                                      className="text-xs text-error underline underline-offset-2"
+                                    >
+                                      Refund
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setReplacingLine(replacingLine === line.id ? null : line.id)
+                                      }
+                                      className="text-xs text-on-surface-variant underline underline-offset-2"
+                                    >
+                                      Warranty replace
+                                    </button>
+                                  </span>
                                 )}
                               </div>
                               {refundingLine === line.id && (
@@ -144,6 +161,16 @@ export function OrdersList({ orders }: { orders: OrderRow[] }) {
                                   maxQuantity={remaining}
                                   unitPrice={line.unit_price}
                                   onDone={() => setRefundingLine(null)}
+                                />
+                              )}
+                              {replacingLine === line.id && (
+                                <WarrantyForm
+                                  orderId={order.id}
+                                  orderLineId={line.id}
+                                  maxQuantity={remaining}
+                                  defaultCustomerName={order.customer_name}
+                                  defaultCustomerPhone={order.customer_phone}
+                                  onDone={() => setReplacingLine(null)}
                                 />
                               )}
                             </li>
@@ -232,6 +259,69 @@ function RefundForm({
       <div className="flex gap-2">
         <Button type="submit" variant="danger" disabled={pending}>
           {pending ? "Refunding…" : "Confirm refund"}
+        </Button>
+        <Button type="button" variant="secondary" onClick={onDone} disabled={pending}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function WarrantyForm({
+  orderId,
+  orderLineId,
+  maxQuantity,
+  defaultCustomerName,
+  defaultCustomerPhone,
+  onDone,
+}: {
+  orderId: string;
+  orderLineId: string;
+  maxQuantity: number;
+  defaultCustomerName: string | null;
+  defaultCustomerPhone: string | null;
+  onDone: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(replaceOrder, initialState);
+
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending && !state.error) {
+      onDone();
+    }
+    wasPending.current = pending;
+  }, [pending, state, onDone]);
+
+  return (
+    <form
+      action={formAction}
+      className="mt-2 space-y-3 rounded-xl border border-outline-variant bg-surface-container-high p-4"
+    >
+      <input type="hidden" name="orderId" value={orderId} />
+      <input type="hidden" name="orderLineId" value={orderLineId} />
+      <TextField
+        label={`Quantity to replace (max ${maxQuantity})`}
+        name="quantity"
+        type="number"
+        min={1}
+        max={maxQuantity}
+        defaultValue={1}
+        required
+      />
+      <TextField label="Reason (defect description)" name="reason" required />
+      <TextField label="Customer name" name="customerName" defaultValue={defaultCustomerName ?? ""} />
+      <TextField
+        label="Mobile number"
+        name="customerPhone"
+        type="tel"
+        defaultValue={defaultCustomerPhone ?? ""}
+      />
+      <TextField label="Manager PIN" name="pin" type="password" inputMode="numeric" required />
+      {state.error && <p className="text-sm text-error">{state.error}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Replacing…" : "Confirm replacement"}
         </Button>
         <Button type="button" variant="secondary" onClick={onDone} disabled={pending}>
           Cancel
