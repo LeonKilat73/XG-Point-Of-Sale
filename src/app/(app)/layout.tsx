@@ -3,8 +3,8 @@ import { getCurrentStaff } from "@/lib/auth/staff";
 import { getOpenShift } from "@/actions/shifts";
 import { Nav } from "@/components/Nav";
 import { ClockButton } from "@/components/ClockButton";
+import { ClockInPrompt } from "@/components/ClockInPrompt";
 import { ClockReminderBanner } from "@/components/ClockReminderBanner";
-import { CloseCashierButton } from "@/components/CloseCashierButton";
 import { ShiftProvider } from "@/components/ShiftContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -32,10 +32,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <p className="font-medium text-white">{staff.fullName}</p>
               <p className="capitalize text-sidebar-foreground-muted">{staff.role}</p>
             </div>
-            <CloseCashierButton />
           </div>
         </header>
         <ClockReminderBanner />
+        <ClockInPrompt />
         <main className="flex-1 overflow-y-auto bg-background p-6 text-on-surface">{children}</main>
       </div>
     </ShiftProvider>
