@@ -66,7 +66,7 @@ export function CatalogBrowser({ catalog }: { catalog: InventoryItem[] }) {
                       )}
                     </td>
                     <td className="py-2 text-on-surface-variant">{item.category ?? "—"}</td>
-                    <td className="py-2 text-right text-on-surface">${(item.unitPrice ?? 0).toFixed(2)}</td>
+                    <td className="py-2 text-right text-on-surface">₱{(item.unitPrice ?? 0).toFixed(2)}</td>
                     <td className="py-2 text-right">
                       <span
                         className={`inline-flex items-center gap-1.5 ${

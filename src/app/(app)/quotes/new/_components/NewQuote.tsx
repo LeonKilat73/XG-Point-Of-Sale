@@ -85,8 +85,8 @@ export function NewQuote({ catalog }: { catalog: InventoryItem[] }) {
                   <p className="font-mono text-xs text-on-surface-variant">{line.sku}</p>
                 </td>
                 <td className="py-1.5 text-right">{line.quantity}</td>
-                <td className="py-1.5 text-right">${line.unitPrice.toFixed(2)}</td>
-                <td className="py-1.5 text-right">${(line.unitPrice * line.quantity).toFixed(2)}</td>
+                <td className="py-1.5 text-right">₱{line.unitPrice.toFixed(2)}</td>
+                <td className="py-1.5 text-right">₱{(line.unitPrice * line.quantity).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -94,7 +94,7 @@ export function NewQuote({ catalog }: { catalog: InventoryItem[] }) {
 
         <div className="mt-3 flex justify-between text-base font-semibold text-on-surface">
           <span>Estimated total</span>
-          <span>${saved.subtotal.toFixed(2)}</span>
+          <span>₱{saved.subtotal.toFixed(2)}</span>
         </div>
 
         <p className="mt-4 text-center text-xs text-on-surface-variant">
@@ -133,7 +133,7 @@ export function NewQuote({ catalog }: { catalog: InventoryItem[] }) {
         <Card className="h-fit space-y-4">
           <div className="flex items-center justify-between text-lg font-medium text-on-surface">
             <span>Estimated total</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>₱{subtotal.toFixed(2)}</span>
           </div>
 
           {error && <p className="text-sm text-error">{error}</p>}

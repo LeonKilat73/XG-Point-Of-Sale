@@ -180,8 +180,8 @@ export function Checkout({
                   <p className="font-mono text-xs text-on-surface-variant">{line.sku}</p>
                 </td>
                 <td className="py-1.5 text-right">{line.quantity}</td>
-                <td className="py-1.5 text-right">${line.unitPrice.toFixed(2)}</td>
-                <td className="py-1.5 text-right">${(line.unitPrice * line.quantity).toFixed(2)}</td>
+                <td className="py-1.5 text-right">₱{line.unitPrice.toFixed(2)}</td>
+                <td className="py-1.5 text-right">₱{(line.unitPrice * line.quantity).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -190,15 +190,15 @@ export function Checkout({
         <div className="mt-3 space-y-1 text-sm">
           <div className="flex justify-between text-on-surface-variant">
             <span>Subtotal</span>
-            <span>${receipt.subtotal.toFixed(2)}</span>
+            <span>₱{receipt.subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-semibold text-on-surface">
             <span>Total</span>
-            <span>${receipt.subtotal.toFixed(2)}</span>
+            <span>₱{receipt.subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-on-surface-variant">
             <span>Paid ({METHOD_LABELS[receipt.method]})</span>
-            <span>${receipt.amountPaid.toFixed(2)}</span>
+            <span>₱{receipt.amountPaid.toFixed(2)}</span>
           </div>
           {receipt.referenceNumber && (
             <div className="flex justify-between text-on-surface-variant">
@@ -209,13 +209,13 @@ export function Checkout({
           {receipt.method === "cash" && (
             <div className="flex justify-between text-on-surface-variant">
               <span>Change</span>
-              <span>${receipt.change.toFixed(2)}</span>
+              <span>₱{receipt.change.toFixed(2)}</span>
             </div>
           )}
           {receipt.balanceDue > 0 && (
             <div className="flex justify-between font-medium text-error">
               <span>Balance due</span>
-              <span>${receipt.balanceDue.toFixed(2)}</span>
+              <span>₱{receipt.balanceDue.toFixed(2)}</span>
             </div>
           )}
         </div>
@@ -234,7 +234,7 @@ export function Checkout({
       <Card className="flex items-center justify-between py-4">
         <p className="text-sm text-on-surface-variant">My sales today</p>
         <div className="text-right">
-          <p className="text-lg font-medium text-on-surface">${mySalesToday.total.toFixed(2)}</p>
+          <p className="text-lg font-medium text-on-surface">₱{mySalesToday.total.toFixed(2)}</p>
           <p className="text-xs text-on-surface-variant">
             {mySalesToday.count} sale{mySalesToday.count === 1 ? "" : "s"}
           </p>
@@ -284,7 +284,7 @@ export function Checkout({
         <Card className="h-fit space-y-4">
           <div className="flex items-center justify-between text-lg font-medium text-on-surface">
             <span>Total</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>₱{subtotal.toFixed(2)}</span>
           </div>
 
           <div>
@@ -329,7 +329,7 @@ export function Checkout({
 
           {method === "card" && !creditSale && (
             <p className="text-sm text-on-surface-variant">
-              Charge ${subtotal.toFixed(2)} on the terminal and attach the printed receipt.
+              Charge ₱{subtotal.toFixed(2)} on the terminal and attach the printed receipt.
             </p>
           )}
 
@@ -337,14 +337,14 @@ export function Checkout({
             <p className="text-sm text-on-surface-variant">
               Change:{" "}
               <span className="font-medium text-on-surface">
-                ${Math.max(0, amountNumber - subtotal).toFixed(2)}
+                ₱{Math.max(0, amountNumber - subtotal).toFixed(2)}
               </span>
             </p>
           )}
 
           {creditSale && (
             <p className="text-sm text-on-surface-variant">
-              Balance due: <span className="font-medium text-error">${balanceDue.toFixed(2)}</span>
+              Balance due: <span className="font-medium text-error">₱{balanceDue.toFixed(2)}</span>
             </p>
           )}
 

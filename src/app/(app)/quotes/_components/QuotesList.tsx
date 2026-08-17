@@ -55,7 +55,7 @@ export function QuotesList({ quotes }: { quotes: QuoteRow[] }) {
                   <ul className="mt-2 space-y-1 text-sm text-on-surface-variant">
                     {quote.order_lines.map((line, i) => (
                       <li key={i}>
-                        {line.quantity} × {line.name} ({line.sku}) — $
+                        {line.quantity} × {line.name} ({line.sku}) — ₱
                         {(line.unit_price * line.quantity).toFixed(2)}
                       </li>
                     ))}
@@ -64,7 +64,7 @@ export function QuotesList({ quotes }: { quotes: QuoteRow[] }) {
               </div>
 
               <div className="text-right">
-                <p className="text-lg font-medium text-on-surface">${quote.total.toFixed(2)}</p>
+                <p className="text-lg font-medium text-on-surface">₱{quote.total.toFixed(2)}</p>
                 {isConverted ? (
                   <p className="mt-1 text-xs text-on-surface-variant">Converted to a sale</p>
                 ) : (

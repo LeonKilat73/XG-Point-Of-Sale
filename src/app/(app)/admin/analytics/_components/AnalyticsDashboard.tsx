@@ -402,28 +402,28 @@ export function AnalyticsDashboard({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <p className="text-sm text-on-surface-variant">Revenue</p>
-          <p className="mt-1 text-2xl font-medium text-on-surface">${totalRevenue.toFixed(2)}</p>
+          <p className="mt-1 text-2xl font-medium text-on-surface">₱{totalRevenue.toFixed(2)}</p>
           <p className="mt-1 text-xs text-on-surface-variant">
             {completed.length} sale{completed.length === 1 ? "" : "s"}
           </p>
         </Card>
         <Card>
           <p className="text-sm text-on-surface-variant">Voided</p>
-          <p className="mt-1 text-2xl font-medium text-on-surface">${voidsTotal.toFixed(2)}</p>
+          <p className="mt-1 text-2xl font-medium text-on-surface">₱{voidsTotal.toFixed(2)}</p>
           <p className="mt-1 text-xs text-on-surface-variant">
             {voids.length} order{voids.length === 1 ? "" : "s"}
           </p>
         </Card>
         <Card>
           <p className="text-sm text-on-surface-variant">Refunded</p>
-          <p className="mt-1 text-2xl font-medium text-on-surface">${refundsTotal.toFixed(2)}</p>
+          <p className="mt-1 text-2xl font-medium text-on-surface">₱{refundsTotal.toFixed(2)}</p>
           <p className="mt-1 text-xs text-on-surface-variant">
             {refundsInWindow.length} return{refundsInWindow.length === 1 ? "" : "s"}
           </p>
         </Card>
         <Card>
           <p className="text-sm text-on-surface-variant">Replaced</p>
-          <p className="mt-1 text-2xl font-medium text-on-surface">${replacementsValue.toFixed(2)}</p>
+          <p className="mt-1 text-2xl font-medium text-on-surface">₱{replacementsValue.toFixed(2)}</p>
           <p className="mt-1 text-xs text-on-surface-variant">
             {replacementsUnits} unit{replacementsUnits === 1 ? "" : "s"}
           </p>
@@ -452,10 +452,10 @@ export function AnalyticsDashboard({
                   axisLine={false}
                   tickLine={false}
                   width={56}
-                  tickFormatter={(v: number) => `$${v}`}
+                  tickFormatter={(v: number) => `₱${v}`}
                 />
                 <Tooltip
-                  formatter={(value) => [`$${Number(value).toFixed(2)}`, "Revenue"]}
+                  formatter={(value) => [`₱${Number(value).toFixed(2)}`, "Revenue"]}
                   contentStyle={{ fontSize: 13 }}
                 />
                 <Bar
@@ -500,7 +500,7 @@ export function AnalyticsDashboard({
                         />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} contentStyle={{ fontSize: 13 }} />
+                    <Tooltip formatter={(value) => `₱${Number(value).toFixed(2)}`} contentStyle={{ fontSize: 13 }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -514,7 +514,7 @@ export function AnalyticsDashboard({
                       />
                       {entry.label}
                     </span>
-                    <span className="text-on-surface-variant">${entry.amount.toFixed(2)}</span>
+                    <span className="text-on-surface-variant">₱{entry.amount.toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
@@ -579,7 +579,7 @@ export function AnalyticsDashboard({
                       {o.void_reason && ` — ${o.void_reason}`}
                     </p>
                   </div>
-                  <span className="text-on-surface">${o.total.toFixed(2)}</span>
+                  <span className="text-on-surface">₱{o.total.toFixed(2)}</span>
                 </li>
               ))}
             </ul>
@@ -609,7 +609,7 @@ export function AnalyticsDashboard({
                         {r.reason && ` — ${r.reason}`}
                       </p>
                     </div>
-                    <span className="text-on-surface">${r.refund_amount.toFixed(2)}</span>
+                    <span className="text-on-surface">₱{r.refund_amount.toFixed(2)}</span>
                   </li>
                 );
               })}
@@ -639,7 +639,7 @@ export function AnalyticsDashboard({
                         {w.reason && ` — ${w.reason}`}
                       </p>
                     </div>
-                    <span className="text-on-surface">${(w.unit_price * w.quantity).toFixed(2)}</span>
+                    <span className="text-on-surface">₱{(w.unit_price * w.quantity).toFixed(2)}</span>
                   </li>
                 );
               })}
@@ -682,7 +682,7 @@ export function AnalyticsDashboard({
         ) : (
           <>
             <p className="mb-3 text-sm text-on-surface-variant">
-              Total outstanding: <span className="font-medium text-on-surface">${totalOutstanding.toFixed(2)}</span>
+              Total outstanding: <span className="font-medium text-on-surface">₱{totalOutstanding.toFixed(2)}</span>
             </p>
             <ul className="space-y-2 text-sm">
               {customerBalances.map((c) => (
@@ -700,7 +700,7 @@ export function AnalyticsDashboard({
                       {c.daysOutstanding === 1 ? "" : "s"} outstanding
                     </p>
                   </div>
-                  <span className="font-medium text-error">${c.balance.toFixed(2)}</span>
+                  <span className="font-medium text-error">₱{c.balance.toFixed(2)}</span>
                 </li>
               ))}
             </ul>

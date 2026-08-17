@@ -189,7 +189,7 @@ export function CartBuilder({
                     </p>
                   </div>
                   <div className="shrink-0 text-right text-xs text-on-surface-variant">
-                    <p>${(item.unitPrice ?? 0).toFixed(2)}</p>
+                    <p>₱{(item.unitPrice ?? 0).toFixed(2)}</p>
                     <p>{item.stock} in stock</p>
                   </div>
                 </button>
@@ -250,8 +250,8 @@ export function CartBuilder({
                       onCommit={(quantity) => updateQuantity(line.itemId, quantity)}
                     />
                   </td>
-                  <td className="py-2 text-right">${line.unitPrice.toFixed(2)}</td>
-                  <td className="py-2 text-right">${(line.unitPrice * line.quantity).toFixed(2)}</td>
+                  <td className="py-2 text-right">₱{line.unitPrice.toFixed(2)}</td>
+                  <td className="py-2 text-right">₱{(line.unitPrice * line.quantity).toFixed(2)}</td>
                   <td className="py-2 text-right">
                     <button
                       type="button"

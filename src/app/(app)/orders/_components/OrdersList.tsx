@@ -227,7 +227,7 @@ export function OrdersList({
                             <li key={line.id}>
                               <div className="flex items-center justify-between gap-2">
                                 <span>
-                                  {line.quantity} × {line.name} ({line.sku}) — $
+                                  {line.quantity} × {line.name} ({line.sku}) — ₱
                                   {(line.unit_price * line.quantity).toFixed(2)}
                                   {returnedQty > 0 && ` — ${returnedQty} refunded`}
                                   {replacedQty > 0 && ` — ${replacedQty} replaced`}
@@ -282,9 +282,9 @@ export function OrdersList({
                   </div>
 
                   <div className="text-right">
-                    <p className="text-lg font-medium text-on-surface">${order.total.toFixed(2)}</p>
+                    <p className="text-lg font-medium text-on-surface">₱{order.total.toFixed(2)}</p>
                     {!isVoided && balanceDue > 0 && (
-                      <p className="mt-1 text-xs text-error">Balance due: ${balanceDue.toFixed(2)}</p>
+                      <p className="mt-1 text-xs text-error">Balance due: ₱{balanceDue.toFixed(2)}</p>
                     )}
                     {isVoided ? (
                       <p className="mt-1 text-xs text-error">
@@ -373,7 +373,7 @@ function RefundForm({
         required
       />
       <p className="text-xs text-on-surface-variant">
-        Refund amount: ${(unitPrice * Math.max(1, Math.min(quantity, maxQuantity))).toFixed(2)}
+        Refund amount: ₱{(unitPrice * Math.max(1, Math.min(quantity, maxQuantity))).toFixed(2)}
       </p>
       <TextField label="Reason for refund" name="reason" required />
       <TextField label="Manager PIN" name="pin" type="password" inputMode="numeric" required />
@@ -508,7 +508,7 @@ function PaymentForm({
         </div>
       </div>
       <TextField
-        label={`Amount received (balance due $${balanceDue.toFixed(2)})`}
+        label={`Amount received (balance due ₱${balanceDue.toFixed(2)})`}
         name="amount"
         type="number"
         step="0.01"
