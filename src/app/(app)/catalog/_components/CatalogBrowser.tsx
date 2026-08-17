@@ -1,29 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { InventoryItem } from "@/lib/inventory";
 import { matchesQuery } from "@/lib/catalogSearch";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
 
+const ALL_CATEGORIES = "All";
+
 export function CatalogBrowser({ catalog }: { catalog: InventoryItem[] }) {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [category, setCategory] = useState(ALL_CATEGORIES);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of catalog) if (item.category) set.add(item.category);
+    return [ALL_CATEGORIES, ...[...set].sort()];
+  }, [catalog]);
 
   const q = query.trim();
-  const filtered = (q ? catalog.filter((item) => matchesQuery(item, q)) : catalog)
+  const filtered = catalog
+    .filter((item) => category === ALL_CATEGORIES || item.category === category)
+    .filter((item) => q.length === 0 || matchesQuery(item, q))
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="space-y-4">
       <Card>
-        <TextField
-          label="Search by name, SKU, or category"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoComplete="off"
-        />
+        <div className="flex items-end gap-3">
+          <TextField
+            label="Search by name, SKU, or category"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoComplete="off"
+            className="flex-1"
+          />
+          {categories.length > 1 && (
+            <label className="block w-48 shrink-0">
+              <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Category</span>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-md border border-outline bg-surface px-3 py-2.5 text-sm text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat === ALL_CATEGORIES ? "All categories" : cat}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
       </Card>
 
       <Card className="overflow-x-auto">
