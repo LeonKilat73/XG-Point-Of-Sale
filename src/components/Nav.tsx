@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { StaffRole } from "@/lib/auth/staff";
 
-export function Nav({ role }: { role: StaffRole }) {
+export function Nav({ role, className }: { role: StaffRole; className?: string }) {
   const pathname = usePathname();
 
   const items = [
@@ -23,7 +23,7 @@ export function Nav({ role }: { role: StaffRole }) {
   ];
 
   return (
-    <nav className="flex gap-1">
+    <nav className={`flex gap-1 ${className ?? ""}`}>
       {items.map((item) => {
         const active = pathname.startsWith(item.href);
         return (
