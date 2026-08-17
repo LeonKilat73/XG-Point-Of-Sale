@@ -24,7 +24,7 @@ export default async function StaffPage() {
         <p className="mt-1 text-sm text-on-surface-variant">Add cashiers and managers, and manage existing accounts.</p>
       </div>
 
-      <Card className="max-w-md">
+      <Card className="max-w-2xl">
         <h2 className="mb-4 text-lg font-medium text-on-surface">Add staff member</h2>
         <AddStaffForm viewerIsAdmin={staff.role === "admin"} />
       </Card>
