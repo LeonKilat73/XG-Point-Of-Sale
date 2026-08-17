@@ -8,6 +8,7 @@ import { TextField } from "@/components/ui/Field";
 
 export function CatalogBrowser({ catalog }: { catalog: InventoryItem[] }) {
   const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const q = query.trim();
   const filtered = (q ? catalog.filter((item) => matchesQuery(item, q)) : catalog)
@@ -49,6 +50,20 @@ export function CatalogBrowser({ catalog }: { catalog: InventoryItem[] }) {
                         {item.isBundle && " · bundle"}
                       </p>
                       <p className="font-mono text-xs text-on-surface-variant">{item.sku}</p>
+                      {item.description && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setExpanded(expanded === item.id ? null : item.id)}
+                            className="mt-1 block text-xs text-on-surface-variant underline underline-offset-2"
+                          >
+                            {expanded === item.id ? "Hide details" : "Details"}
+                          </button>
+                          {expanded === item.id && (
+                            <p className="mt-1 max-w-xs text-xs text-on-surface-variant">{item.description}</p>
+                          )}
+                        </>
+                      )}
                     </td>
                     <td className="py-2 text-on-surface-variant">{item.category ?? "—"}</td>
                     <td className="py-2 text-right text-on-surface">${(item.unitPrice ?? 0).toFixed(2)}</td>

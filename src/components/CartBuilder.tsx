@@ -37,6 +37,7 @@ export function CartBuilder({
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupPending, setLookupPending] = useState(false);
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES);
+  const [expandedDetail, setExpandedDetail] = useState<string | null>(null);
   const skuInputRef = useRef<HTMLInputElement>(null);
 
   const categories = useMemo(() => {
@@ -171,27 +172,45 @@ export function CartBuilder({
             <p className="p-3 text-sm text-on-surface-variant">No items match.</p>
           ) : (
             browseList.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handlePickMatch(item)}
-                className="flex w-full items-center justify-between gap-3 border-b border-outline-variant/60 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-surface-container-high"
-              >
-                <div>
-                  <p className="font-medium text-on-surface">
-                    {item.name}
-                    {item.isBundle && " · bundle"}
-                  </p>
-                  <p className="font-mono text-xs text-on-surface-variant">
-                    {item.sku}
-                    {item.category ? ` · ${item.category}` : ""}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right text-xs text-on-surface-variant">
-                  <p>${(item.unitPrice ?? 0).toFixed(2)}</p>
-                  <p>{item.stock} in stock</p>
-                </div>
-              </button>
+              <div key={item.id} className="border-b border-outline-variant/60 last:border-b-0">
+                <button
+                  type="button"
+                  onClick={() => handlePickMatch(item)}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-surface-container-high"
+                >
+                  <div>
+                    <p className="font-medium text-on-surface">
+                      {item.name}
+                      {item.isBundle && " · bundle"}
+                    </p>
+                    <p className="font-mono text-xs text-on-surface-variant">
+                      {item.sku}
+                      {item.category ? ` · ${item.category}` : ""}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right text-xs text-on-surface-variant">
+                    <p>${(item.unitPrice ?? 0).toFixed(2)}</p>
+                    <p>{item.stock} in stock</p>
+                  </div>
+                </button>
+                {item.description && (
+                  <div className="px-3 pb-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedDetail(expandedDetail === item.id ? null : item.id);
+                      }}
+                      className="text-xs text-on-surface-variant underline underline-offset-2"
+                    >
+                      {expandedDetail === item.id ? "Hide details" : "Details"}
+                    </button>
+                    {expandedDetail === item.id && (
+                      <p className="mt-1 text-xs text-on-surface-variant">{item.description}</p>
+                    )}
+                  </div>
+                )}
+              </div>
             ))
           )}
         </div>
