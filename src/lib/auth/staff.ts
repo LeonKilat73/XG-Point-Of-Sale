@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import type { WeekSchedule } from "@/lib/schedule";
 
 export type StaffRole = "cashier" | "manager" | "admin";
 
@@ -10,6 +11,7 @@ export type CurrentStaff = {
   fullName: string;
   role: StaffRole;
   isActive: boolean;
+  schedule: WeekSchedule | null;
 };
 
 export function isManagerOrAdmin(role: StaffRole): boolean {
@@ -28,7 +30,7 @@ export const getCurrentStaff = cache(async (): Promise<CurrentStaff | null> => {
 
   const { data: staff } = await supabase
     .from("staff")
-    .select("full_name, email, role, is_active")
+    .select("full_name, email, role, is_active, schedule")
     .eq("id", user.id)
     .single();
 
@@ -40,6 +42,7 @@ export const getCurrentStaff = cache(async (): Promise<CurrentStaff | null> => {
     fullName: staff.full_name,
     role: staff.role,
     isActive: staff.is_active,
+    schedule: staff.schedule ?? null,
   };
 });
 

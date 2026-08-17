@@ -4,6 +4,7 @@ import { getOpenShift } from "@/actions/shifts";
 import { AppHeader } from "@/components/AppHeader";
 import { ClockInPrompt } from "@/components/ClockInPrompt";
 import { ClockReminderBanner } from "@/components/ClockReminderBanner";
+import { ShiftEndReminder } from "@/components/ShiftEndReminder";
 import { ShiftProvider } from "@/components/ShiftContext";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <AppHeader fullName={staff.fullName} role={staff.role} />
         <ClockReminderBanner />
         <ClockInPrompt />
+        <ShiftEndReminder schedule={staff.schedule} />
         <main className="flex-1 overflow-y-auto bg-background p-4 text-on-surface md:p-6">{children}</main>
       </div>
     </ShiftProvider>

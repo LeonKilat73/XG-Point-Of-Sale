@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentStaff, isManagerOrAdmin, type StaffRole } from "@/lib/auth/staff";
+import { parseScheduleFormValue } from "@/lib/schedule";
 
 export type ActionState = { error: string | null };
 const ok: ActionState = { error: null };
@@ -28,13 +29,44 @@ export async function addStaffMember(_prevState: ActionState, formData: FormData
     return { error: "Only an admin can add another admin." };
   }
 
+  const scheduleRaw = String(formData.get("schedule") ?? "");
+  const schedule = scheduleRaw ? parseScheduleFormValue(scheduleRaw) : null;
+
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.createUser({
+  const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: { full_name: fullName, requested_role: role },
   });
+  if (error) return { error: error.message };
+
+  // handle_new_staff's trigger already inserted the staff row (name, email,
+  // role) off auth.users -- schedule isn't part of that flow, so it's set
+  // here as a direct follow-up now that the row (and its id) exist, rather
+  // than threading a second field through user_metadata + the trigger.
+  if (schedule && Object.keys(schedule).length > 0 && data.user) {
+    await admin.from("staff").update({ schedule }).eq("id", data.user.id);
+  }
+
+  revalidatePath("/staff");
+  return ok;
+}
+
+export async function updateStaffSchedule(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaff();
+  if (!staff) return { error: "You must be signed in." };
+  if (!isManagerOrAdmin(staff.role)) return { error: "Only a manager can do that." };
+
+  const staffId = String(formData.get("staffId") ?? "");
+  if (!staffId) return { error: "Missing staff id." };
+
+  const scheduleRaw = String(formData.get("schedule") ?? "");
+  const schedule = scheduleRaw ? parseScheduleFormValue(scheduleRaw) : null;
+  const scheduleToSave = schedule && Object.keys(schedule).length > 0 ? schedule : null;
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("staff").update({ schedule: scheduleToSave }).eq("id", staffId);
   if (error) return { error: error.message };
 
   revalidatePath("/staff");

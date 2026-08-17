@@ -13,7 +13,7 @@ export default async function StaffPage() {
   const supabase = await createClient();
   const { data: staffRows } = await supabase
     .from("staff")
-    .select("id, full_name, email, role, is_active")
+    .select("id, full_name, email, role, is_active, schedule")
     .order("created_at", { ascending: true })
     .returns<StaffRow[]>();
 

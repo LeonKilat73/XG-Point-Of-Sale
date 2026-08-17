@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
-import { setStaffActive, setStaffRole, type ActionState } from "@/actions/staff";
+import { useActionState, useState } from "react";
+import { setStaffActive, setStaffRole, updateStaffSchedule, type ActionState } from "@/actions/staff";
 import { Button } from "@/components/ui/Button";
+import { ScheduleEditor } from "@/components/ScheduleEditor";
+import { DAY_KEYS, DAY_LABELS, type WeekSchedule } from "@/lib/schedule";
 
 export type StaffRow = {
   id: string;
@@ -10,7 +12,14 @@ export type StaffRow = {
   email: string;
   role: "cashier" | "manager" | "admin";
   is_active: boolean;
+  schedule: WeekSchedule | null;
 };
+
+function scheduleSummary(schedule: WeekSchedule | null): string {
+  if (!schedule) return "No schedule set";
+  const parts = DAY_KEYS.filter((d) => schedule[d]).map((d) => `${DAY_LABELS[d].slice(0, 3)} ${schedule[d]!.start}–${schedule[d]!.end}`);
+  return parts.length ? parts.join(", ") : "No schedule set";
+}
 
 const initialState: ActionState = { error: null };
 
@@ -18,13 +27,18 @@ function StaffRowItem({
   row,
   isSelf,
   viewerIsAdmin,
+  scheduleOpen,
+  onToggleSchedule,
 }: {
   row: StaffRow;
   isSelf: boolean;
   viewerIsAdmin: boolean;
+  scheduleOpen: boolean;
+  onToggleSchedule: () => void;
 }) {
   const [activeState, activeAction, activePending] = useActionState(setStaffActive, initialState);
   const [roleState, roleAction, rolePending] = useActionState(setStaffRole, initialState);
+  const [scheduleState, scheduleAction, schedulePending] = useActionState(updateStaffSchedule, initialState);
 
   // A plain manager can freely manage cashiers/managers, but only an admin
   // can promote someone to admin or change/deactivate an existing admin --
@@ -32,60 +46,83 @@ function StaffRowItem({
   const canManage = !isSelf && (row.role !== "admin" || viewerIsAdmin);
 
   return (
-    <tr className="border-t border-outline-variant/60">
-      <td className="px-4 py-3">
-        <p className="text-on-surface">{row.full_name}</p>
-        <p className="text-xs text-on-surface-variant">{row.email}</p>
-      </td>
-      <td className="px-4 py-3">
-        {canManage ? (
-          <form action={roleAction} className="flex items-center gap-2">
-            <input type="hidden" name="staffId" value={row.id} />
-            <select
-              name="role"
-              defaultValue={row.role}
-              onChange={(e) => e.currentTarget.form?.requestSubmit()}
-              className="rounded-lg border border-outline bg-surface px-2 py-1 text-sm text-on-surface"
-            >
-              <option value="cashier">Cashier</option>
-              <option value="manager">Manager</option>
-              {viewerIsAdmin && <option value="admin">Admin</option>}
-            </select>
-            {rolePending && <span className="text-xs text-on-surface-variant">Saving…</span>}
-          </form>
-        ) : (
-          <span className="capitalize text-on-surface-variant">{row.role}</span>
-        )}
-        {roleState.error && <p className="mt-1 text-xs text-error">{roleState.error}</p>}
-      </td>
-      <td className="px-4 py-3">
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-            row.is_active
-              ? "bg-primary-container text-on-primary-container"
-              : "bg-surface-container-high text-on-surface-variant"
-          }`}
-        >
-          {row.is_active ? "Active" : "Inactive"}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-right">
-        {isSelf ? (
-          <span className="text-xs text-on-surface-variant">You</span>
-        ) : canManage ? (
-          <form action={activeAction}>
-            <input type="hidden" name="staffId" value={row.id} />
-            <input type="hidden" name="active" value={(!row.is_active).toString()} />
-            <Button type="submit" variant="secondary" disabled={activePending} className="px-3 py-1.5 text-xs">
-              {activePending ? "…" : row.is_active ? "Deactivate" : "Reactivate"}
-            </Button>
-          </form>
-        ) : (
-          <span className="text-xs text-on-surface-variant">Admin-managed</span>
-        )}
-        {activeState.error && <p className="mt-1 text-xs text-error">{activeState.error}</p>}
-      </td>
-    </tr>
+    <>
+      <tr className="border-t border-outline-variant/60">
+        <td className="px-4 py-3">
+          <p className="text-on-surface">{row.full_name}</p>
+          <p className="text-xs text-on-surface-variant">{row.email}</p>
+          <button
+            type="button"
+            onClick={onToggleSchedule}
+            className="mt-1 text-xs text-on-surface-variant underline underline-offset-2"
+          >
+            {scheduleOpen ? "Hide schedule" : scheduleSummary(row.schedule)}
+          </button>
+        </td>
+        <td className="px-4 py-3">
+          {canManage ? (
+            <form action={roleAction} className="flex items-center gap-2">
+              <input type="hidden" name="staffId" value={row.id} />
+              <select
+                name="role"
+                defaultValue={row.role}
+                onChange={(e) => e.currentTarget.form?.requestSubmit()}
+                className="rounded-lg border border-outline bg-surface px-2 py-1 text-sm text-on-surface"
+              >
+                <option value="cashier">Cashier</option>
+                <option value="manager">Manager</option>
+                {viewerIsAdmin && <option value="admin">Admin</option>}
+              </select>
+              {rolePending && <span className="text-xs text-on-surface-variant">Saving…</span>}
+            </form>
+          ) : (
+            <span className="capitalize text-on-surface-variant">{row.role}</span>
+          )}
+          {roleState.error && <p className="mt-1 text-xs text-error">{roleState.error}</p>}
+        </td>
+        <td className="px-4 py-3">
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              row.is_active
+                ? "bg-primary-container text-on-primary-container"
+                : "bg-surface-container-high text-on-surface-variant"
+            }`}
+          >
+            {row.is_active ? "Active" : "Inactive"}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-right">
+          {isSelf ? (
+            <span className="text-xs text-on-surface-variant">You</span>
+          ) : canManage ? (
+            <form action={activeAction}>
+              <input type="hidden" name="staffId" value={row.id} />
+              <input type="hidden" name="active" value={(!row.is_active).toString()} />
+              <Button type="submit" variant="secondary" disabled={activePending} className="px-3 py-1.5 text-xs">
+                {activePending ? "…" : row.is_active ? "Deactivate" : "Reactivate"}
+              </Button>
+            </form>
+          ) : (
+            <span className="text-xs text-on-surface-variant">Admin-managed</span>
+          )}
+          {activeState.error && <p className="mt-1 text-xs text-error">{activeState.error}</p>}
+        </td>
+      </tr>
+      {scheduleOpen && (
+        <tr className="border-t border-outline-variant/60 bg-surface-container-high">
+          <td colSpan={4} className="px-4 py-4">
+            <form action={scheduleAction} className="space-y-3">
+              <input type="hidden" name="staffId" value={row.id} />
+              <ScheduleEditor defaultSchedule={row.schedule} />
+              {scheduleState.error && <p className="text-sm text-error">{scheduleState.error}</p>}
+              <Button type="submit" disabled={schedulePending} className="px-3 py-1.5 text-xs">
+                {schedulePending ? "Saving…" : "Save schedule"}
+              </Button>
+            </form>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -98,6 +135,8 @@ export function StaffList({
   currentStaffId: string;
   viewerIsAdmin: boolean;
 }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   if (staff.length === 0) {
     return <p className="text-sm text-on-surface-variant">No staff yet.</p>;
   }
@@ -120,6 +159,8 @@ export function StaffList({
               row={row}
               isSelf={row.id === currentStaffId}
               viewerIsAdmin={viewerIsAdmin}
+              scheduleOpen={expandedId === row.id}
+              onToggleSchedule={() => setExpandedId(expandedId === row.id ? null : row.id)}
             />
           ))}
         </tbody>

@@ -1,0 +1,13 @@
+-- Optional weekly recurring schedule per staff member, so the end-of-shift
+-- reminder popup knows when someone is expected to clock out. Nullable and
+-- opt-in -- existing accounts with no schedule set just never see the
+-- reminder, nothing else about them changes.
+--
+-- Shape: { "mon": {"start":"08:00","end":"17:00"}, "tue": {...}, ...,
+-- "sun": null }. Each of the 7 lowercase day keys maps to a {start,end}
+-- 24h "HH:MM" pair, or is absent/null for a day off. Validated at the
+-- application layer (same approach as this app's other form validation),
+-- not with a DB constraint -- the shape is simple enough that a malformed
+-- value just fails to match a day when the reminder checks it, rather than
+-- needing to be rejected outright.
+alter table staff add column schedule jsonb;
