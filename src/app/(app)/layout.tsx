@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { getCurrentStaff } from "@/lib/auth/staff";
-import { signOut } from "@/actions/auth";
 import { getOpenShift } from "@/actions/shifts";
 import { Nav } from "@/components/Nav";
 import { ClockButton } from "@/components/ClockButton";
 import { ClockReminderBanner } from "@/components/ClockReminderBanner";
+import { CloseCashierButton } from "@/components/CloseCashierButton";
 import { ShiftProvider } from "@/components/ShiftContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -32,14 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <p className="font-medium text-white">{staff.fullName}</p>
               <p className="capitalize text-sidebar-foreground-muted">{staff.role}</p>
             </div>
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="text-sm text-sidebar-foreground underline underline-offset-2 hover:text-white"
-              >
-                Sign out
-              </button>
-            </form>
+            <CloseCashierButton />
           </div>
         </header>
         <ClockReminderBanner />
