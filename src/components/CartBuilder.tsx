@@ -131,25 +131,6 @@ export function CartBuilder({
   return (
     <div className="space-y-4">
       <Card>
-        {categories.length > 1 && (
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setActiveCategory(cat)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  activeCategory === cat
-                    ? "border border-primary bg-primary-container text-on-primary-container"
-                    : "border border-outline-variant text-on-surface-variant hover:bg-surface-container-high"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        )}
-
         <form onSubmit={handleLookup} className="flex items-end gap-3">
           <TextField
             ref={skuInputRef}
@@ -164,6 +145,22 @@ export function CartBuilder({
           <Button type="submit" disabled={lookupPending}>
             {lookupPending ? "Looking up…" : "Add"}
           </Button>
+          {categories.length > 1 && (
+            <label className="block w-48 shrink-0">
+              <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Category</span>
+              <select
+                value={activeCategory}
+                onChange={(e) => setActiveCategory(e.target.value)}
+                className="w-full rounded-md border border-outline bg-surface px-3 py-2.5 text-sm text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat === ALL_CATEGORIES ? "All categories" : cat}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </form>
         {lookupError && <p className="mt-2 text-sm text-error">{lookupError}</p>}
 
