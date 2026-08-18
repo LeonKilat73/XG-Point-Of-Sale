@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { StaffRole } from "@/lib/auth/staff";
 import { Nav } from "./Nav";
 import { ClockButton } from "./ClockButton";
+import { LogoutButton } from "./LogoutButton";
 import { ThemeToggle } from "./ThemeToggle";
 
 // Below md the full header (title, nav links, clock button, theme toggle,
@@ -39,6 +40,9 @@ export function AppHeader({ fullName, role }: { fullName: string; role: StaffRol
 
         <div className="hidden items-center gap-3 md:flex">
           <ClockButton />
+          {role !== "cashier" && (
+            <LogoutButton className="bg-sidebar-hover text-sidebar-foreground hover:brightness-110" />
+          )}
           <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-hover" />
           <div className="text-right text-sm">
             <p className="font-medium text-white">{fullName}</p>
@@ -66,7 +70,12 @@ export function AppHeader({ fullName, role }: { fullName: string; role: StaffRol
         <div className="space-y-4 border-t border-white/10 px-4 py-4 md:hidden">
           <Nav role={role} className="flex-col items-stretch" />
           <div className="flex items-center justify-between">
-            <ClockButton />
+            <div className="flex items-center gap-2">
+              <ClockButton />
+              {role !== "cashier" && (
+                <LogoutButton className="bg-sidebar-hover text-sidebar-foreground hover:brightness-110" />
+              )}
+            </div>
             <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-hover" />
           </div>
           <div className="text-sm">

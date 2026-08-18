@@ -10,6 +10,20 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // @supabase/ssr defaults to PKCE, which ties an email link to a
+      // verifier cookie stored in whichever browser *requested* it -- fine
+      // for OAuth (same tab, same browser, immediate redirect), but breaks
+      // password reset: staff routinely request a reset on one device and
+      // open the email on another (or a different browser/app entirely),
+      // and PKCE has no way to validate that. This app has no OAuth sign-in
+      // (email/password only), so implicit is the correct flow type
+      // throughout, not just for the reset action -- it makes every email
+      // link (reset, and a future signUp confirmation link if one's ever
+      // sent) a self-contained token that doesn't depend on where it's
+      // opened, matching how the admin-invite link already behaves.
+      auth: {
+        flowType: "implicit",
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();
