@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentStaff, isManagerOrAdmin, type StaffRole } from "@/lib/auth/staff";
 import { parseScheduleFormValue } from "@/lib/schedule";
+import { getSiteOrigin } from "@/lib/getSiteOrigin";
 
 export type ActionState = { error: string | null };
 const ok: ActionState = { error: null };
@@ -18,12 +19,10 @@ export async function addStaffMember(_prevState: ActionState, formData: FormData
 
   const fullName = String(formData.get("fullName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
   const role = String(formData.get("role") ?? "cashier") as StaffRole;
 
-  if (!fullName || !email || !password) return { error: "Name, email, and password are required." };
+  if (!fullName || !email) return { error: "Name and email are required." };
   if (!EMAIL_RE.test(email)) return { error: "Enter a valid email address." };
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
   if (!VALID_ROLES.includes(role)) return { error: "Invalid role." };
   if (role === "admin" && staff.role !== "admin") {
     return { error: "Only an admin can add another admin." };
@@ -32,21 +31,24 @@ export async function addStaffMember(_prevState: ActionState, formData: FormData
   const scheduleRaw = String(formData.get("schedule") ?? "");
   const schedule = scheduleRaw ? parseScheduleFormValue(scheduleRaw) : null;
 
+  const origin = await getSiteOrigin();
   const admin = createAdminClient();
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName, requested_role: role },
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: { full_name: fullName },
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
   });
   if (error) return { error: error.message };
 
-  // handle_new_staff's trigger already inserted the staff row (name, email,
-  // role) off auth.users -- schedule isn't part of that flow, so it's set
-  // here as a direct follow-up now that the row (and its id) exist, rather
-  // than threading a second field through user_metadata + the trigger.
-  if (schedule && Object.keys(schedule).length > 0 && data.user) {
-    await admin.from("staff").update({ schedule }).eq("id", data.user.id);
+  // handle_new_staff's trigger already inserted the staff row off
+  // auth.users, but always as 'cashier' (a manager/admin can only reach
+  // this action once at least one staff row already exists, so the
+  // "first signup becomes manager" bootstrap branch never applies here) --
+  // the actually-requested role, and schedule, are set as a follow-up now
+  // that the row (and its id) exist.
+  if (data.user) {
+    const updates: { role: StaffRole; schedule?: ReturnType<typeof parseScheduleFormValue> } = { role };
+    if (schedule && Object.keys(schedule).length > 0) updates.schedule = schedule;
+    await admin.from("staff").update(updates).eq("id", data.user.id);
   }
 
   revalidatePath("/staff");

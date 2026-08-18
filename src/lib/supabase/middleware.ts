@@ -2,10 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database.types";
 
-// v1 has no external API and no invite-email flow yet (self-signup only,
-// same as inventory's very first cut) -- just /login needs to be reachable
-// without a session.
-const SESSION_EXEMPT_PATHS = ["/login"];
+// /auth/callback and /reset-password must be reachable without a session --
+// clicking an invite email link has no session yet, so that route must stay
+// open before the code-exchange sets one, or the redirect to /login would
+// fire first and the link would never work.
+const SESSION_EXEMPT_PATHS = ["/login", "/reset-password", "/auth/callback"];
 
 // Refreshes the Supabase auth session on every request and redirects
 // unauthenticated users to /login. Cheap, request-wide gate -- role checks

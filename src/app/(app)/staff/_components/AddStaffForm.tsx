@@ -32,7 +32,6 @@ export function AddStaffForm({ viewerIsAdmin }: { viewerIsAdmin: boolean }) {
     <form ref={formRef} action={formAction} className="space-y-4">
       <TextField label="Full name" name="fullName" required />
       <TextField label="Email" name="email" type="email" required />
-      <TextField label="Temporary password" name="password" type="password" minLength={8} required />
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium text-on-surface-variant">Role</span>
         <select name="role" defaultValue="cashier" className={selectClass}>
@@ -49,8 +48,11 @@ export function AddStaffForm({ viewerIsAdmin }: { viewerIsAdmin: boolean }) {
       </div>
       {state.error && <p className="text-sm text-error">{state.error}</p>}
       <Button type="submit" disabled={pending}>
-        {pending ? "Adding…" : "Add staff member"}
+        {pending ? "Sending invite…" : "Invite staff member"}
       </Button>
+      <p className="text-xs text-on-surface-variant">
+        They&apos;ll get an email to set their own password.
+      </p>
     </form>
   );
 }
