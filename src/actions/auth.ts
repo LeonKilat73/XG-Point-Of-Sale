@@ -3,8 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSiteOrigin } from "@/lib/getSiteOrigin";
 
-export type AuthActionState = { error: string | null };
+export type AuthActionState = { error: string | null; info?: string | null };
 
 export async function login(
   _prevState: AuthActionState,
@@ -64,6 +65,27 @@ export async function signUp(
   }
 
   redirect("/checkout");
+}
+
+export async function requestPasswordReset(
+  _prevState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email) return { error: "Enter your email." };
+
+  const origin = await getSiteOrigin();
+  const supabase = await createClient();
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+  });
+
+  // Same message whether or not an account exists, so this can't be used to
+  // check which emails are registered staff.
+  return {
+    error: null,
+    info: "If an account exists for that email, a password reset link has been sent.",
+  };
 }
 
 export async function signOut() {
