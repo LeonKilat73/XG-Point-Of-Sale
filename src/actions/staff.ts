@@ -105,6 +105,36 @@ export async function setStaffActive(_prevState: ActionState, formData: FormData
   return ok;
 }
 
+export async function deleteStaffMember(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const staff = await getCurrentStaff();
+  if (!staff) return { error: "You must be signed in." };
+  if (!isManagerOrAdmin(staff.role)) return { error: "Only a manager can do that." };
+
+  const staffId = String(formData.get("staffId") ?? "");
+  if (!staffId) return { error: "Missing staff id." };
+  if (staffId === staff.id) return { error: "You can't delete your own account." };
+
+  const admin = createAdminClient();
+  const { data: target } = await admin.from("staff").select("role, is_active").eq("id", staffId).single();
+  if (target?.role === "admin" && staff.role !== "admin") {
+    return { error: "Only an admin can delete another admin's account." };
+  }
+  if (target?.is_active) {
+    return { error: "Deactivate this account before deleting it." };
+  }
+
+  const { error } = await admin.auth.admin.deleteUser(staffId);
+  if (error) {
+    return {
+      error:
+        "This account can't be deleted because it has activity on record (orders, shifts, refunds, etc.) that other data still depends on. It will stay deactivated instead.",
+    };
+  }
+
+  revalidatePath("/staff");
+  return ok;
+}
+
 export async function setStaffRole(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const staff = await getCurrentStaff();
   if (!staff) return { error: "You must be signed in." };

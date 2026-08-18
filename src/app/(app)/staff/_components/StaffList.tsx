@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { setStaffActive, setStaffRole, updateStaffSchedule, type ActionState } from "@/actions/staff";
+import { deleteStaffMember, setStaffActive, setStaffRole, updateStaffSchedule, type ActionState } from "@/actions/staff";
 import { Button } from "@/components/ui/Button";
 import { ScheduleEditor } from "@/components/ScheduleEditor";
 import { DAY_KEYS, DAY_LABELS, type WeekSchedule } from "@/lib/schedule";
@@ -39,6 +39,8 @@ function StaffRowItem({
   const [activeState, activeAction, activePending] = useActionState(setStaffActive, initialState);
   const [roleState, roleAction, rolePending] = useActionState(setStaffRole, initialState);
   const [scheduleState, scheduleAction, schedulePending] = useActionState(updateStaffSchedule, initialState);
+  const [deleteState, deleteAction, deletePending] = useActionState(deleteStaffMember, initialState);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // A plain manager can freely manage cashiers/managers, but only an admin
   // can promote someone to admin or change/deactivate an existing admin --
@@ -95,17 +97,52 @@ function StaffRowItem({
           {isSelf ? (
             <span className="text-xs text-on-surface-variant">You</span>
           ) : canManage ? (
-            <form action={activeAction}>
-              <input type="hidden" name="staffId" value={row.id} />
-              <input type="hidden" name="active" value={(!row.is_active).toString()} />
-              <Button type="submit" variant="secondary" disabled={activePending} className="px-3 py-1.5 text-xs">
-                {activePending ? "…" : row.is_active ? "Deactivate" : "Reactivate"}
-              </Button>
-            </form>
+            <div className="flex flex-col items-end gap-2">
+              <form action={activeAction}>
+                <input type="hidden" name="staffId" value={row.id} />
+                <input type="hidden" name="active" value={(!row.is_active).toString()} />
+                <Button type="submit" variant="secondary" disabled={activePending} className="px-3 py-1.5 text-xs">
+                  {activePending ? "…" : row.is_active ? "Deactivate" : "Reactivate"}
+                </Button>
+              </form>
+
+              {confirmDelete ? (
+                <div className="w-48 space-y-2 rounded-lg border border-error/40 bg-error-container/30 p-3 text-left">
+                  <p className="text-xs text-on-surface">
+                    Permanently delete <strong>{row.full_name}</strong>&apos;s account?
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <form action={deleteAction}>
+                      <input type="hidden" name="staffId" value={row.id} />
+                      <Button type="submit" variant="danger" disabled={deletePending} className="px-3 py-1.5 text-xs">
+                        {deletePending ? "Deleting…" : "Yes, delete"}
+                      </Button>
+                    </form>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={deletePending}
+                      className="text-xs text-on-surface-variant underline underline-offset-2"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-xs text-error underline underline-offset-2"
+                >
+                  Delete account
+                </button>
+              )}
+            </div>
           ) : (
             <span className="text-xs text-on-surface-variant">Admin-managed</span>
           )}
           {activeState.error && <p className="mt-1 text-xs text-error">{activeState.error}</p>}
+          {deleteState.error && <p className="mt-1 text-xs text-error">{deleteState.error}</p>}
         </td>
       </tr>
       {scheduleOpen && (
