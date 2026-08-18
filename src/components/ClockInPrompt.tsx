@@ -3,14 +3,18 @@
 import { useState } from "react";
 import { useShift } from "./ShiftContext";
 import { Button } from "./ui/Button";
+import type { StaffRole } from "@/lib/auth/staff";
 
 // Shown once, centered, right after a signed-in staff member's page loads
 // if they have no open shift -- more noticeable than a thin banner since
-// it's the first thing they see. Dismissible, not blocking: someone who
-// needs to look something up before starting their shift isn't locked out.
-export function ClockInPrompt() {
+// it's the first thing they see. Dismissible for a manager/admin (they
+// aren't required to clock in to use the system), but not for a cashier --
+// clocking in is how a cashier's shift/sales get tracked at all, so they
+// can't skip past this one.
+export function ClockInPrompt({ role }: { role: StaffRole }) {
   const { shift, pending, toggle } = useShift();
   const [dismissed, setDismissed] = useState(false);
+  const canDismiss = role !== "cashier";
 
   if (shift || dismissed) return null;
 
@@ -22,9 +26,11 @@ export function ClockInPrompt() {
           You&apos;re signed in but not clocked in for a shift yet.
         </p>
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setDismissed(true)} disabled={pending}>
-            Dismiss
-          </Button>
+          {canDismiss && (
+            <Button variant="secondary" onClick={() => setDismissed(true)} disabled={pending}>
+              Dismiss
+            </Button>
+          )}
           <Button onClick={() => void toggle()} disabled={pending}>
             {pending ? "…" : "Clock in"}
           </Button>

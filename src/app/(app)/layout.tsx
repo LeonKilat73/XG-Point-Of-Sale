@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 flex-col">
         <AppHeader fullName={staff.fullName} role={staff.role} />
         <ClockReminderBanner />
-        <ClockInPrompt />
+        <ClockInPrompt role={staff.role} />
         <ShiftEndReminder schedule={staff.schedule} />
         <main className="flex-1 overflow-y-auto bg-background p-4 text-on-surface md:p-6">{children}</main>
       </div>
