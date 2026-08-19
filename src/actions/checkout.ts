@@ -29,10 +29,6 @@ export type PaymentTender = {
   method: PaymentMethod;
   amount: number;
   referenceNumber?: string;
-  // Cashier explicitly deferred capturing the reference (customer still
-  // screenshotting it, next walk-in is already paying) -- see
-  // resolvePaymentReference in orders.ts for filling it in later.
-  referencePending?: boolean;
   installmentMonths?: 3 | 6 | 12;
 };
 
@@ -79,13 +75,8 @@ export async function submitSale(
   }
 
   for (const p of payments) {
-    if (
-      p.amount > 0 &&
-      (p.method === "ewallet" || p.method === "bank_transfer") &&
-      !p.referenceNumber?.trim() &&
-      !p.referencePending
-    ) {
-      return { error: "Enter the e-wallet or bank transfer reference number, or mark it to add later." };
+    if (p.amount > 0 && (p.method === "ewallet" || p.method === "bank_transfer") && !p.referenceNumber?.trim()) {
+      return { error: "Enter the e-wallet or bank transfer reference number." };
     }
   }
 
@@ -172,7 +163,6 @@ export async function submitSale(
           method: p.method,
           amount: p.amount,
           reference_number: p.referenceNumber?.trim() || null,
-          reference_pending: p.referencePending ?? false,
           card_fee_amount: cardFeeAmount,
           installment_months: installmentMonths,
           installment_monthly_amount: installmentMonthlyAmount,

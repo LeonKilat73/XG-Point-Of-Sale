@@ -17,7 +17,6 @@ export type ReceiptTender = {
   method: PaymentMethod;
   amount: number;
   referenceNumber: string;
-  referencePending: boolean;
   cardFeeAmount: number;
   installmentMonths: number | null;
   installmentMonthlyAmount: number | null;
@@ -117,7 +116,6 @@ export function Receipt({ data, actions }: { data: ReceiptData; actions?: ReactN
                 <span className="font-mono">{t.referenceNumber}</span>
               </div>
             )}
-            {t.referencePending && <p className="text-xs text-error">Reference number to be added</p>}
             {t.cardFeeAmount > 0 && (
               <div className="flex justify-between text-xs text-on-surface-variant">
                 <span>Card processing fee (3%)</span>

@@ -35,12 +35,11 @@ type TenderDraft = {
   method: PaymentMethod;
   amount: string;
   referenceNumber: string;
-  referencePending: boolean;
   installmentMonths: "" | "3" | "6" | "12";
 };
 
 function newTender(defaultAmount: string): TenderDraft {
-  return { method: "cash", amount: defaultAmount, referenceNumber: "", referencePending: false, installmentMonths: "" };
+  return { method: "cash", amount: defaultAmount, referenceNumber: "", installmentMonths: "" };
 }
 
 function round2(n: number): number {
@@ -121,7 +120,7 @@ export function Checkout({
   const tenderIssues = tenders.map((t) => {
     const amountNumber = Number(t.amount) || 0;
     const needsReference = (t.method === "ewallet" || t.method === "bank_transfer") && amountNumber > 0;
-    const referenceMissing = needsReference && !t.referencePending && t.referenceNumber.trim().length === 0;
+    const referenceMissing = needsReference && t.referenceNumber.trim().length === 0;
     return { needsReference, referenceMissing };
   });
   const anyReferenceMissing = tenderIssues.some((t) => t.referenceMissing);
@@ -149,7 +148,6 @@ export function Checkout({
         method: t.method,
         amount: Number(t.amount) || 0,
         referenceNumber: t.referenceNumber.trim() || undefined,
-        referencePending: t.referencePending || undefined,
         installmentMonths:
           t.method === "card" && t.installmentMonths ? (Number(t.installmentMonths) as 3 | 6 | 12) : undefined,
       }));
@@ -194,7 +192,6 @@ export function Checkout({
         method: p.method,
         amount: p.amount,
         referenceNumber: p.referenceNumber ?? "",
-        referencePending: p.referencePending ?? false,
         cardFeeAmount: p.method === "card" ? round2(p.amount * CARD_FEE_RATE) : 0,
         installmentMonths: p.installmentMonths ?? null,
         installmentMonthlyAmount: p.installmentMonths ? round2(p.amount / p.installmentMonths) : null,
@@ -415,7 +412,7 @@ export function Checkout({
                     onChange={(e) => updateTender(i, { amount: e.target.value })}
                   />
 
-                  {needsReference && !tender.referencePending && (
+                  {needsReference && (
                     <TextField
                       label={`${METHOD_LABELS[tender.method]} reference number`}
                       value={tender.referenceNumber}
@@ -424,20 +421,8 @@ export function Checkout({
                       required
                     />
                   )}
-                  {needsReference && (
-                    <label className="flex items-center gap-2 text-xs text-on-surface-variant">
-                      <input
-                        type="checkbox"
-                        checked={tender.referencePending}
-                        onChange={(e) =>
-                          updateTender(i, { referencePending: e.target.checked, referenceNumber: "" })
-                        }
-                      />
-                      Customer still getting the reference number -- add it later
-                    </label>
-                  )}
                   {referenceMissing && (
-                    <p className="text-xs text-error">Enter the reference number, or check &quot;add it later&quot;.</p>
+                    <p className="text-xs text-error">Enter the reference number to confirm the payment.</p>
                   )}
 
                   {tender.method === "card" && (

@@ -8,7 +8,6 @@ import {
   recordPayment,
   refundOrder,
   replaceOrder,
-  resolvePaymentReference,
   voidOrder,
   type ActionState,
 } from "@/actions/orders";
@@ -61,7 +60,6 @@ export type OrderRow = {
     id: string;
     method: string;
     reference_number: string | null;
-    reference_pending: boolean;
     amount: number;
     card_fee_amount: number;
     installment_months: number | null;
@@ -107,7 +105,6 @@ export function OrdersList({
     kind: "refund" | "warranty" | "exchange";
   } | null>(null);
   const [payingOrder, setPayingOrder] = useState<string | null>(null);
-  const [resolvingPaymentId, setResolvingPaymentId] = useState<string | null>(null);
   const [receiptOrderId, setReceiptOrderId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const hasDateFilter = Boolean(dateFrom || dateTo);
@@ -217,7 +214,6 @@ export function OrdersList({
             const isVoided = order.status === "voided";
             const paidSoFar = order.payments.reduce((sum, p) => sum + p.amount, 0);
             const balanceDue = Math.round((order.total - paidSoFar) * 100) / 100;
-            const pendingReferencePayments = order.payments.filter((p) => p.reference_pending);
 
             return (
               <Card key={order.id}>
@@ -243,9 +239,6 @@ export function OrdersList({
                             · Ref <span className="font-mono">{payment.reference_number}</span>
                           </>
                         )}
-                        {payment.reference_pending && (
-                          <span className="text-error"> · Reference pending</span>
-                        )}
                         {payment.card_fee_amount > 0 && ` · +₱${payment.card_fee_amount.toFixed(2)} card fee`}
                         {payment.installment_months && payment.installment_monthly_amount && (
                           <>
@@ -262,24 +255,6 @@ export function OrdersList({
                         {order.discount_amount.toFixed(2)}
                       </p>
                     )}
-                    {pendingReferencePayments.map((payment) => (
-                      <div key={payment.id} className="mt-1">
-                        {resolvingPaymentId === payment.id ? (
-                          <ResolveReferenceForm
-                            paymentId={payment.id}
-                            onDone={() => setResolvingPaymentId(null)}
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setResolvingPaymentId(payment.id)}
-                            className="text-xs text-error underline underline-offset-2"
-                          >
-                            ⚠ Reference pending for {METHOD_LABELS[payment.method]} — Add now
-                          </button>
-                        )}
-                      </div>
-                    ))}
                     <button
                       type="button"
                       onClick={() => setExpanded(expanded === order.id ? null : order.id)}
@@ -862,32 +837,6 @@ function PaymentForm({
   );
 }
 
-function ResolveReferenceForm({ paymentId, onDone }: { paymentId: string; onDone: () => void }) {
-  const [state, formAction, pending] = useActionState(resolvePaymentReference, initialState);
-
-  const wasPending = useRef(false);
-  useEffect(() => {
-    if (wasPending.current && !pending && !state.error) {
-      onDone();
-    }
-    wasPending.current = pending;
-  }, [pending, state, onDone]);
-
-  return (
-    <form action={formAction} className="flex items-end gap-2">
-      <input type="hidden" name="paymentId" value={paymentId} />
-      <TextField label="Reference number" name="referenceNumber" required />
-      <Button type="submit" disabled={pending} className="shrink-0">
-        {pending ? "Saving…" : "Save"}
-      </Button>
-      <Button type="button" variant="secondary" onClick={onDone} disabled={pending} className="shrink-0">
-        Cancel
-      </Button>
-      {state.error && <p className="text-sm text-error">{state.error}</p>}
-    </form>
-  );
-}
-
 // Rebuilds the same shape Checkout builds right after a sale, but from the
 // order's stored rows, so any historical order can be reprinted/re-emailed
 // -- not just the one just rung up. Mirrors buildReceiptData in
@@ -916,7 +865,6 @@ function OrderReceiptView({ order, balanceDue }: { order: OrderRow; balanceDue: 
       method: p.method as PaymentMethod,
       amount: p.amount,
       referenceNumber: p.reference_number ?? "",
-      referencePending: p.reference_pending,
       cardFeeAmount: p.card_fee_amount,
       installmentMonths: p.installment_months,
       installmentMonthlyAmount: p.installment_monthly_amount,

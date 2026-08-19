@@ -22,7 +22,7 @@ async function buildReceiptData(orderId: string): Promise<ReceiptData | null> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, created_at, customer_name, customer_phone, subtotal, total, discount_type, discount_value, discount_amount, staff:staff_id(full_name), order_lines(sku, name, quantity, unit_price), payments(method, amount, reference_number, reference_pending, card_fee_amount, installment_months, installment_monthly_amount)",
+      "id, created_at, customer_name, customer_phone, subtotal, total, discount_type, discount_value, discount_amount, staff:staff_id(full_name), order_lines(sku, name, quantity, unit_price), payments(method, amount, reference_number, card_fee_amount, installment_months, installment_monthly_amount)",
     )
     .eq("id", orderId)
     .single();
@@ -54,7 +54,6 @@ async function buildReceiptData(orderId: string): Promise<ReceiptData | null> {
       method: p.method,
       amount: p.amount,
       referenceNumber: p.reference_number ?? "",
-      referencePending: p.reference_pending,
       cardFeeAmount: p.card_fee_amount,
       installmentMonths: p.installment_months,
       installmentMonthlyAmount: p.installment_monthly_amount,
@@ -79,7 +78,6 @@ function renderReceiptHtml(data: ReceiptData): string {
     .map((t) => {
       let extra = "";
       if (t.referenceNumber) extra += `<div>Reference #: ${t.referenceNumber}</div>`;
-      if (t.referencePending) extra += `<div style="color:#c02020;">Reference number to be added</div>`;
       if (t.cardFeeAmount > 0) extra += `<div>Card processing fee (3%): ₱${t.cardFeeAmount.toFixed(2)}</div>`;
       if (t.installmentMonths && t.installmentMonthlyAmount) {
         extra += `<div>${t.installmentMonths} months × ₱${t.installmentMonthlyAmount.toFixed(2)}/mo</div>`;
