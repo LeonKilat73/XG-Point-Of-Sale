@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchCatalog } from "@/lib/inventory";
 import { OrdersList, type OrderRow } from "./_components/OrdersList";
 
 // Raised from an earlier flat 200 -- a date-filtered query is naturally
@@ -19,7 +20,7 @@ export default async function OrdersPage({
   let query = supabase
     .from("orders")
     .select(
-      "id, status, subtotal, total, customer_name, customer_phone, created_at, voided_at, void_reason, staff:staff_id(full_name), order_lines(id, sku, name, quantity, unit_price), payments(method, reference_number, amount), returns(order_line_id, quantity, refund_amount, reason, created_at), warranty_replacements(original_order_line_id, quantity)",
+      "id, status, subtotal, total, customer_name, customer_phone, created_at, voided_at, void_reason, staff:staff_id(full_name), order_lines(id, sku, name, quantity, unit_price), payments(method, reference_number, amount), returns(order_line_id, quantity, refund_amount, reason, created_at), warranty_replacements(original_order_line_id, quantity), exchanges(original_order_line_id, quantity, new_sku, new_name, new_unit_price, price_difference)",
       { count: "exact" },
     )
     // Orders is real sales history -- quotes share this table (status =
@@ -37,10 +38,10 @@ export default async function OrdersPage({
   if (from) query = query.gte("created_at", from);
   if (to) query = query.lte("created_at", to);
 
-  const { data: orders, count } = await query
-    .order("created_at", { ascending: false })
-    .limit(ORDER_FETCH_LIMIT)
-    .returns<OrderRow[]>();
+  const [{ data: orders, count }, catalog] = await Promise.all([
+    query.order("created_at", { ascending: false }).limit(ORDER_FETCH_LIMIT).returns<OrderRow[]>(),
+    fetchCatalog(),
+  ]);
 
   const truncated = (count ?? 0) > ORDER_FETCH_LIMIT;
 
@@ -56,6 +57,7 @@ export default async function OrdersPage({
       <div className="mt-6">
         <OrdersList
           orders={orders ?? []}
+          catalog={catalog}
           dateFrom={from ?? ""}
           dateTo={to ?? ""}
           truncated={truncated}
