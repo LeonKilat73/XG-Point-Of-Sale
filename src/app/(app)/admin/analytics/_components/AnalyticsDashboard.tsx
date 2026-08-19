@@ -210,6 +210,11 @@ export function AnalyticsDashboard({
       paymentsByOrder.set(p.order_id, list);
     }
     const totals = new Map<string, number>();
+    // Count is a straight tally of how many payment rows used each method
+    // (not revenue-shared like amount above) -- "how many times did someone
+    // pay with GCash" is naturally a count of tenders, not a fractional
+    // share of an order.
+    const counts = new Map<string, number>();
     for (const o of completed) {
       const orderPayments = paymentsByOrder.get(o.id) ?? [];
       const tendered = orderPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -217,6 +222,7 @@ export function AnalyticsDashboard({
       for (const p of orderPayments) {
         const share = o.total * (p.amount / tendered);
         totals.set(p.method, (totals.get(p.method) ?? 0) + share);
+        counts.set(p.method, (counts.get(p.method) ?? 0) + 1);
       }
     }
     return [...totals.entries()]
@@ -224,6 +230,7 @@ export function AnalyticsDashboard({
         method,
         label: METHOD_LABELS[method] ?? method,
         amount: Math.round(amount * 100) / 100,
+        count: counts.get(method) ?? 0,
       }))
       .sort((a, b) => b.amount - a.amount);
   }, [payments, completed]);
@@ -520,7 +527,12 @@ export function AnalyticsDashboard({
                         />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => `₱${Number(value).toFixed(2)}`} contentStyle={{ fontSize: 13 }} />
+                    <Tooltip
+                      formatter={(value, _name, entry) =>
+                        `₱${Number(value).toFixed(2)} (${entry?.payload?.count ?? 0} txn${(entry?.payload?.count ?? 0) === 1 ? "" : "s"})`
+                      }
+                      contentStyle={{ fontSize: 13 }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -534,7 +546,12 @@ export function AnalyticsDashboard({
                       />
                       {entry.label}
                     </span>
-                    <span className="text-on-surface-variant">₱{entry.amount.toFixed(2)}</span>
+                    <span className="text-right text-on-surface-variant">
+                      <span className="block">₱{entry.amount.toFixed(2)}</span>
+                      <span className="block text-xs">
+                        {entry.count} transaction{entry.count === 1 ? "" : "s"}
+                      </span>
+                    </span>
                   </li>
                 ))}
               </ul>
