@@ -194,3 +194,25 @@ body {
   background: var(--color-background);
   color: var(--color-on-surface);
 }
+
+/* Printing a receipt (Receipt.tsx): hide everything except the receipt
+   itself -- nav, buttons, the rest of the page -- so what comes out of the
+   printer is just the receipt, not a screenshot of the app around it. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .receipt-print-area,
+  .receipt-print-area * {
+    visibility: visible;
+  }
+  .receipt-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  .receipt-no-print {
+    display: none !important;
+  }
+}

@@ -16,6 +16,10 @@
 - **Card processing fee**: a 3% fee is calculated automatically on any card payment and itemized separately on the receipt, on top of the sale total (not folded into it).
 - **Card installments**: a card payment can be split into 3, 6, or 12 months, with the even monthly breakdown shown on the receipt (no store-added interest).
 
+### New: Print & email receipts
+- Any order in Orders (not just one just rung up) can now show its receipt again, with a "Print" button that prints just the receipt — no menu, buttons, or the rest of the page in the printout.
+- Added "Email to" on the same receipt view — sends a copy to any email address via Resend. Note: Resend is still in sandbox mode (no verified domain yet), so real delivery is currently limited to the account's own registered address — emailing a real customer won't land in their inbox until a domain is added.
+
 ## 2026-08-18
 
 ### Display & UX

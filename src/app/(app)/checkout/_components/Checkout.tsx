@@ -11,6 +11,7 @@ import {
 } from "@/actions/checkout";
 import type { InventoryItem } from "@/lib/inventory";
 import { CartBuilder, type CartLine } from "@/components/CartBuilder";
+import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
@@ -45,33 +46,6 @@ function newTender(defaultAmount: string): TenderDraft {
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
-
-type ReceiptLine = { sku: string; name: string; quantity: number; unitPrice: number };
-type ReceiptTender = {
-  method: PaymentMethod;
-  amount: number;
-  referenceNumber: string;
-  referencePending: boolean;
-  cardFeeAmount: number;
-  installmentMonths: number | null;
-  installmentMonthlyAmount: number | null;
-};
-type Receipt = {
-  orderId: string;
-  createdAt: string;
-  cashierName: string;
-  customerName: string;
-  customerPhone: string;
-  lines: ReceiptLine[];
-  subtotal: number;
-  discountType: "percent" | "flat" | null;
-  discountValue: number | null;
-  discountAmount: number;
-  total: number;
-  tenders: ReceiptTender[];
-  change: number;
-  balanceDue: number;
-};
 
 // Local calendar day, not UTC -- the server has no way to know the shop's
 // timezone, so "today" has to be decided here in the browser, same
@@ -113,7 +87,7 @@ export function Checkout({
   const [discountPin, setDiscountPin] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [mySalesToday, setMySalesToday] = useState<MySalesTodaySummary>({ total: 0, count: 0 });
 
   useEffect(() => {
@@ -244,115 +218,15 @@ export function Checkout({
   }
 
   if (receipt) {
-    const receiptNumber = receipt.orderId.slice(0, 8).toUpperCase();
     return (
-      <Card className="mx-auto max-w-md">
-        <div className="text-center">
-          <h2 className="text-lg font-semibold text-on-surface">XG Point of Sale</h2>
-          <p className="text-xs text-on-surface-variant">Car accessories</p>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between text-xs text-on-surface-variant">
-          <span>Receipt #{receiptNumber}</span>
-          <span>{new Date(receipt.createdAt).toLocaleString()}</span>
-        </div>
-        <p className="text-xs text-on-surface-variant">Cashier: {receipt.cashierName}</p>
-        {(receipt.customerName || receipt.customerPhone) && (
-          <p className="text-xs text-on-surface-variant">
-            Bill to: {receipt.customerName || "—"}
-            {receipt.customerPhone && ` · ${receipt.customerPhone}`}
-          </p>
-        )}
-
-        <table className="mt-4 w-full text-sm">
-          <thead className="border-b border-outline-variant text-left text-xs text-on-surface-variant">
-            <tr>
-              <th className="pb-1 font-medium">Item</th>
-              <th className="pb-1 text-right font-medium">Qty</th>
-              <th className="pb-1 text-right font-medium">Price</th>
-              <th className="pb-1 text-right font-medium">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {receipt.lines.map((line) => (
-              <tr key={line.sku} className="border-b border-outline-variant/60">
-                <td className="py-1.5">
-                  <p className="text-on-surface">{line.name}</p>
-                  <p className="font-mono text-xs text-on-surface-variant">{line.sku}</p>
-                </td>
-                <td className="py-1.5 text-right">{line.quantity}</td>
-                <td className="py-1.5 text-right">₱{line.unitPrice.toFixed(2)}</td>
-                <td className="py-1.5 text-right">₱{(line.unitPrice * line.quantity).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className="mt-3 space-y-1 text-sm">
-          <div className="flex justify-between text-on-surface-variant">
-            <span>Subtotal</span>
-            <span>₱{receipt.subtotal.toFixed(2)}</span>
-          </div>
-          {receipt.discountAmount > 0 && (
-            <div className="flex justify-between text-on-surface-variant">
-              <span>
-                Discount {receipt.discountType === "percent" ? `(${receipt.discountValue}%)` : "(flat)"}
-              </span>
-              <span>-₱{receipt.discountAmount.toFixed(2)}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-base font-semibold text-on-surface">
-            <span>Total</span>
-            <span>₱{receipt.total.toFixed(2)}</span>
-          </div>
-          {receipt.tenders.map((t, i) => (
-            <div key={i} className="border-t border-outline-variant/60 pt-1">
-              <div className="flex justify-between text-on-surface-variant">
-                <span>Paid ({METHOD_LABELS[t.method]})</span>
-                <span>₱{t.amount.toFixed(2)}</span>
-              </div>
-              {t.referenceNumber && (
-                <div className="flex justify-between text-xs text-on-surface-variant">
-                  <span>Reference #</span>
-                  <span className="font-mono">{t.referenceNumber}</span>
-                </div>
-              )}
-              {t.referencePending && (
-                <p className="text-xs text-error">Reference number to be added</p>
-              )}
-              {t.cardFeeAmount > 0 && (
-                <div className="flex justify-between text-xs text-on-surface-variant">
-                  <span>Card processing fee (3%)</span>
-                  <span>₱{t.cardFeeAmount.toFixed(2)}</span>
-                </div>
-              )}
-              {t.installmentMonths && t.installmentMonthlyAmount && (
-                <p className="text-xs text-on-surface-variant">
-                  {t.installmentMonths} months × ₱{t.installmentMonthlyAmount.toFixed(2)}/mo
-                </p>
-              )}
-            </div>
-          ))}
-          {receipt.change > 0 && (
-            <div className="flex justify-between text-on-surface-variant">
-              <span>Change</span>
-              <span>₱{receipt.change.toFixed(2)}</span>
-            </div>
-          )}
-          {receipt.balanceDue > 0 && (
-            <div className="flex justify-between font-medium text-error">
-              <span>Balance due</span>
-              <span>₱{receipt.balanceDue.toFixed(2)}</span>
-            </div>
-          )}
-        </div>
-
-        <p className="mt-4 text-center text-xs text-on-surface-variant">Thank you for your purchase!</p>
-
-        <Button className="mt-6 w-full" onClick={() => setReceipt(null)}>
-          Start next sale
-        </Button>
-      </Card>
+      <Receipt
+        data={receipt}
+        actions={
+          <Button className="flex-1" onClick={() => setReceipt(null)}>
+            Start next sale
+          </Button>
+        }
+      />
     );
   }
 

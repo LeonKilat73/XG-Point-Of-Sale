@@ -12,7 +12,10 @@ import {
   voidOrder,
   type ActionState,
 } from "@/actions/orders";
+import { sendReceiptEmail } from "@/actions/receipt";
+import type { PaymentMethod } from "@/actions/checkout";
 import type { InventoryItem } from "@/lib/inventory";
+import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
@@ -105,6 +108,7 @@ export function OrdersList({
   } | null>(null);
   const [payingOrder, setPayingOrder] = useState<string | null>(null);
   const [resolvingPaymentId, setResolvingPaymentId] = useState<string | null>(null);
+  const [receiptOrderId, setReceiptOrderId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const hasDateFilter = Boolean(dateFrom || dateTo);
   const dateFromLocal = dateFrom ? toLocalDateInputValue(dateFrom) : "";
@@ -283,6 +287,14 @@ export function OrdersList({
                     >
                       {expanded === order.id ? "Hide items" : `${order.order_lines.length} item(s)`}
                     </button>
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => setReceiptOrderId(receiptOrderId === order.id ? null : order.id)}
+                      className="mt-1 text-xs text-primary underline underline-offset-2"
+                    >
+                      {receiptOrderId === order.id ? "Hide receipt" : "Print / email receipt"}
+                    </button>
                     {expanded === order.id && (
                       <ul className="mt-2 space-y-2 text-sm text-on-surface-variant">
                         {order.order_lines.map((line) => {
@@ -445,6 +457,9 @@ export function OrdersList({
                   />
                 )}
                 {voiding === order.id && <VoidForm orderId={order.id} onDone={() => setVoiding(null)} />}
+                {receiptOrderId === order.id && (
+                  <OrderReceiptView order={order} balanceDue={Math.max(0, balanceDue)} />
+                )}
               </Card>
             );
           })}
@@ -869,6 +884,85 @@ function ResolveReferenceForm({ paymentId, onDone }: { paymentId: string; onDone
         Cancel
       </Button>
       {state.error && <p className="text-sm text-error">{state.error}</p>}
+    </form>
+  );
+}
+
+// Rebuilds the same shape Checkout builds right after a sale, but from the
+// order's stored rows, so any historical order can be reprinted/re-emailed
+// -- not just the one just rung up. Mirrors buildReceiptData in
+// src/actions/receipt.ts (that one runs server-side for the email itself;
+// this one runs client-side since the data's already in `orders`).
+function OrderReceiptView({ order, balanceDue }: { order: OrderRow; balanceDue: number }) {
+  const staff = Array.isArray(order.staff) ? order.staff[0] : order.staff;
+  const data: ReceiptData = {
+    orderId: order.id,
+    createdAt: order.created_at,
+    cashierName: staff?.full_name ?? "Unknown staff",
+    customerName: order.customer_name ?? "",
+    customerPhone: order.customer_phone ?? "",
+    lines: order.order_lines.map((l) => ({
+      sku: l.sku,
+      name: l.name,
+      quantity: l.quantity,
+      unitPrice: l.unit_price,
+    })),
+    subtotal: order.subtotal,
+    discountType: order.discount_type,
+    discountValue: order.discount_value,
+    discountAmount: order.discount_amount,
+    total: order.total,
+    tenders: order.payments.map((p) => ({
+      method: p.method as PaymentMethod,
+      amount: p.amount,
+      referenceNumber: p.reference_number ?? "",
+      referencePending: p.reference_pending,
+      cardFeeAmount: p.card_fee_amount,
+      installmentMonths: p.installment_months,
+      installmentMonthlyAmount: p.installment_monthly_amount,
+    })),
+    change: 0,
+    balanceDue,
+  };
+
+  return (
+    <div className="mt-4">
+      <Receipt
+        data={data}
+        actions={<EmailReceiptForm orderId={order.id} defaultEmail={order.customer_email ?? ""} />}
+      />
+    </div>
+  );
+}
+
+function EmailReceiptForm({ orderId, defaultEmail }: { orderId: string; defaultEmail: string }) {
+  const [state, formAction, pending] = useActionState(sendReceiptEmail, initialState);
+  const [sent, setSent] = useState(false);
+
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending && !state.error) {
+      setSent(true);
+    }
+    wasPending.current = pending;
+  }, [pending, state]);
+
+  return (
+    <form action={formAction} className="receipt-no-print flex flex-1 flex-wrap items-end gap-2">
+      <input type="hidden" name="orderId" value={orderId} />
+      <TextField
+        label="Email to"
+        name="email"
+        type="email"
+        defaultValue={defaultEmail}
+        required
+        className="min-w-0 flex-1"
+      />
+      <Button type="submit" disabled={pending} className="shrink-0">
+        {pending ? "Sending…" : "Send"}
+      </Button>
+      {sent && !state.error && <p className="w-full text-xs text-primary">Sent.</p>}
+      {state.error && <p className="w-full text-xs text-error">{state.error}</p>}
     </form>
   );
 }
