@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentStaff } from "@/lib/auth/staff";
 import { recordInventorySale } from "@/lib/inventory";
+import { verifyManagerPin } from "./pin";
 import type { CartLine } from "@/components/CartBuilder";
 
 export type SubmitResult = { error: string } | { orderId: string; change: number };
@@ -19,12 +20,31 @@ export type SubmitResult = { error: string } | { orderId: string; change: number
 // movements.
 export type PaymentMethod = "cash" | "card" | "ewallet" | "bank_transfer";
 
+const CARD_FEE_RATE = 0.03;
+
+// One row is inserted per tender -- payments has allowed multiple rows per
+// order since the credit-sale feature, this just exposes it at the initial
+// sale too (Cash + E-wallet in one checkout, instead of two separate sales).
+export type PaymentTender = {
+  method: PaymentMethod;
+  amount: number;
+  referenceNumber?: string;
+  // Cashier explicitly deferred capturing the reference (customer still
+  // screenshotting it, next walk-in is already paying) -- see
+  // resolvePaymentReference in orders.ts for filling it in later.
+  referencePending?: boolean;
+  installmentMonths?: 3 | 6 | 12;
+};
+
+export type DiscountInput = { type: "percent" | "flat"; value: number; reason: string; pin: string };
+
 export async function submitSale(
   cart: CartLine[],
-  payment: { method: PaymentMethod; amount: number; referenceNumber?: string },
+  payments: PaymentTender[],
   fromQuoteId?: string,
-  customer?: { name?: string; phone?: string },
+  customer?: { name?: string; phone?: string; email?: string },
   allowPartialPayment?: boolean,
+  discount?: DiscountInput,
 ): Promise<SubmitResult> {
   const staff = await getCurrentStaff();
   if (!staff) return { error: "You must be signed in." };
@@ -33,9 +53,22 @@ export async function submitSale(
   if (cart.length === 0) return { error: "Cart is empty." };
 
   const subtotal = cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
-  if (!allowPartialPayment && payment.amount < subtotal) {
+
+  let discountAmount = 0;
+  if (discount) {
+    if (!discount.reason.trim()) return { error: "Enter a reason for the discount." };
+    if (!Number.isFinite(discount.value) || discount.value <= 0) return { error: "Enter a valid discount." };
+    const pinOk = await verifyManagerPin(discount.pin);
+    if (!pinOk) return { error: "Invalid manager PIN for the discount." };
+    const raw = discount.type === "percent" ? subtotal * (discount.value / 100) : discount.value;
+    discountAmount = Math.min(subtotal, Math.round(raw * 100) / 100);
+  }
+  const total = Math.round((subtotal - discountAmount) * 100) / 100;
+
+  const totalTendered = Math.round(payments.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
+  if (!allowPartialPayment && totalTendered < total) {
     return {
-      error: `Payment of $${payment.amount.toFixed(2)} is less than the total of $${subtotal.toFixed(2)}.`,
+      error: `Payment of ₱${totalTendered.toFixed(2)} is less than the total of ₱${total.toFixed(2)}.`,
     };
   }
 
@@ -45,9 +78,15 @@ export async function submitSale(
     return { error: "Credit sales require a customer name and mobile number." };
   }
 
-  const referenceNumber = payment.referenceNumber?.trim() || null;
-  if (payment.amount > 0 && (payment.method === "ewallet" || payment.method === "bank_transfer") && !referenceNumber) {
-    return { error: "Enter the e-wallet or bank transfer reference number before completing the sale." };
+  for (const p of payments) {
+    if (
+      p.amount > 0 &&
+      (p.method === "ewallet" || p.method === "bank_transfer") &&
+      !p.referenceNumber?.trim() &&
+      !p.referencePending
+    ) {
+      return { error: "Enter the e-wallet or bank transfer reference number, or mark it to add later." };
+    }
   }
 
   const orderId = randomUUID();
@@ -69,9 +108,15 @@ export async function submitSale(
     staff_id: staff.id,
     status: "completed",
     subtotal,
-    total: subtotal,
+    total,
+    discount_type: discount?.type ?? null,
+    discount_value: discount?.value ?? null,
+    discount_amount: discountAmount,
+    discount_reason: discount?.reason.trim() || null,
+    discount_staff_id: discount ? staff.id : null,
     customer_name: customer?.name?.trim() || null,
     customer_phone: customer?.phone?.trim() || null,
+    customer_email: customer?.email?.trim() || null,
   });
   if (orderError) {
     return { error: `Sale was recorded in inventory but failed to save locally: ${orderError.message}` };
@@ -94,14 +139,31 @@ export async function submitSale(
 
   // A pure $0-down credit sale records no payment at all -- payments stays
   // empty until money actually changes hands, rather than a zero-amount row.
-  if (payment.amount > 0) {
-    const { error: paymentError } = await supabase.from("payments").insert({
-      order_id: orderId,
-      method: payment.method,
-      amount: payment.amount,
-      reference_number: referenceNumber,
-      staff_id: staff.id,
-    });
+  const tendersToInsert = payments.filter((p) => p.amount > 0);
+  if (tendersToInsert.length > 0) {
+    const { error: paymentError } = await supabase.from("payments").insert(
+      tendersToInsert.map((p) => {
+        // Computed server-side, never trusting a client-sent fee/split --
+        // both are informational only (kept out of `amount`) so
+        // balance-due math never has to account for them.
+        const cardFeeAmount = p.method === "card" ? Math.round(p.amount * CARD_FEE_RATE * 100) / 100 : 0;
+        const installmentMonths = p.method === "card" ? p.installmentMonths ?? null : null;
+        const installmentMonthlyAmount = installmentMonths
+          ? Math.round((p.amount / installmentMonths) * 100) / 100
+          : null;
+        return {
+          order_id: orderId,
+          method: p.method,
+          amount: p.amount,
+          reference_number: p.referenceNumber?.trim() || null,
+          reference_pending: p.referencePending ?? false,
+          card_fee_amount: cardFeeAmount,
+          installment_months: installmentMonths,
+          installment_monthly_amount: installmentMonthlyAmount,
+          staff_id: staff.id,
+        };
+      }),
+    );
     if (paymentError) {
       return { error: `Sale was recorded but the payment failed to save: ${paymentError.message}` };
     }
@@ -124,7 +186,11 @@ export async function submitSale(
 
   revalidatePath("/checkout");
   revalidatePath("/quotes");
-  const change = payment.method === "cash" && payment.amount > subtotal ? payment.amount - subtotal : 0;
+  // Excess is only ever handed back as change when at least one tender was
+  // cash -- overpaying via card/e-wallet/bank transfer isn't something this
+  // app can hand change back for.
+  const hasCashTender = payments.some((p) => p.method === "cash");
+  const change = hasCashTender && totalTendered > total ? Math.round((totalTendered - total) * 100) / 100 : 0;
   return { orderId, change };
 }
 

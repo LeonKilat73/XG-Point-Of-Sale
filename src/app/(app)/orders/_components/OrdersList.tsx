@@ -8,6 +8,7 @@ import {
   recordPayment,
   refundOrder,
   replaceOrder,
+  resolvePaymentReference,
   voidOrder,
   type ActionState,
 } from "@/actions/orders";
@@ -41,14 +42,28 @@ export type OrderRow = {
   status: "completed" | "voided";
   subtotal: number;
   total: number;
+  discount_type: "percent" | "flat" | null;
+  discount_value: number | null;
+  discount_amount: number;
+  discount_reason: string | null;
   customer_name: string | null;
   customer_phone: string | null;
+  customer_email: string | null;
   created_at: string;
   voided_at: string | null;
   void_reason: string | null;
   staff: { full_name: string } | { full_name: string }[] | null;
   order_lines: { id: string; sku: string; name: string; quantity: number; unit_price: number }[];
-  payments: { method: string; reference_number: string | null; amount: number }[];
+  payments: {
+    id: string;
+    method: string;
+    reference_number: string | null;
+    reference_pending: boolean;
+    amount: number;
+    card_fee_amount: number;
+    installment_months: number | null;
+    installment_monthly_amount: number | null;
+  }[];
   returns: { order_line_id: string; quantity: number; refund_amount: number; reason: string | null; created_at: string }[];
   warranty_replacements: { original_order_line_id: string; quantity: number }[];
   exchanges: {
@@ -89,6 +104,7 @@ export function OrdersList({
     kind: "refund" | "warranty" | "exchange";
   } | null>(null);
   const [payingOrder, setPayingOrder] = useState<string | null>(null);
+  const [resolvingPaymentId, setResolvingPaymentId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const hasDateFilter = Boolean(dateFrom || dateTo);
   const dateFromLocal = dateFrom ? toLocalDateInputValue(dateFrom) : "";
@@ -195,9 +211,9 @@ export function OrdersList({
           {filtered.map((order) => {
             const staff = Array.isArray(order.staff) ? order.staff[0] : order.staff;
             const isVoided = order.status === "voided";
-            const payment = order.payments[0];
             const paidSoFar = order.payments.reduce((sum, p) => sum + p.amount, 0);
             const balanceDue = Math.round((order.total - paidSoFar) * 100) / 100;
+            const pendingReferencePayments = order.payments.filter((p) => p.reference_pending);
 
             return (
               <Card key={order.id}>
@@ -214,17 +230,52 @@ export function OrdersList({
                     <p className="mt-1 text-sm text-on-surface-variant">
                       {new Date(order.created_at).toLocaleString()} · {staff?.full_name ?? "Unknown staff"}
                     </p>
-                    {payment && (
-                      <p className="mt-1 text-sm text-on-surface-variant">
-                        {METHOD_LABELS[payment.method] ?? payment.method}
+                    {order.payments.map((payment) => (
+                      <p key={payment.id} className="mt-1 text-sm text-on-surface-variant">
+                        {METHOD_LABELS[payment.method] ?? payment.method} · ₱{payment.amount.toFixed(2)}
                         {payment.reference_number && (
                           <>
                             {" "}
                             · Ref <span className="font-mono">{payment.reference_number}</span>
                           </>
                         )}
+                        {payment.reference_pending && (
+                          <span className="text-error"> · Reference pending</span>
+                        )}
+                        {payment.card_fee_amount > 0 && ` · +₱${payment.card_fee_amount.toFixed(2)} card fee`}
+                        {payment.installment_months && payment.installment_monthly_amount && (
+                          <>
+                            {" "}
+                            · {payment.installment_months} mo × ₱{payment.installment_monthly_amount.toFixed(2)}
+                          </>
+                        )}
+                      </p>
+                    ))}
+                    {order.discount_amount > 0 && (
+                      <p className="mt-1 text-sm text-on-surface-variant">
+                        Discount ({order.discount_type === "percent" ? `${order.discount_value}%` : "flat"}
+                        {order.discount_reason ? ` · ${order.discount_reason}` : ""}): -₱
+                        {order.discount_amount.toFixed(2)}
                       </p>
                     )}
+                    {pendingReferencePayments.map((payment) => (
+                      <div key={payment.id} className="mt-1">
+                        {resolvingPaymentId === payment.id ? (
+                          <ResolveReferenceForm
+                            paymentId={payment.id}
+                            onDone={() => setResolvingPaymentId(null)}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setResolvingPaymentId(payment.id)}
+                            className="text-xs text-error underline underline-offset-2"
+                          >
+                            ⚠ Reference pending for {METHOD_LABELS[payment.method]} — Add now
+                          </button>
+                        )}
+                      </div>
+                    ))}
                     <button
                       type="button"
                       onClick={() => setExpanded(expanded === order.id ? null : order.id)}
@@ -792,6 +843,32 @@ function PaymentForm({
           Cancel
         </Button>
       </div>
+    </form>
+  );
+}
+
+function ResolveReferenceForm({ paymentId, onDone }: { paymentId: string; onDone: () => void }) {
+  const [state, formAction, pending] = useActionState(resolvePaymentReference, initialState);
+
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending && !state.error) {
+      onDone();
+    }
+    wasPending.current = pending;
+  }, [pending, state, onDone]);
+
+  return (
+    <form action={formAction} className="flex items-end gap-2">
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <TextField label="Reference number" name="referenceNumber" required />
+      <Button type="submit" disabled={pending} className="shrink-0">
+        {pending ? "Saving…" : "Save"}
+      </Button>
+      <Button type="button" variant="secondary" onClick={onDone} disabled={pending} className="shrink-0">
+        Cancel
+      </Button>
+      {state.error && <p className="text-sm text-error">{state.error}</p>}
     </form>
   );
 }

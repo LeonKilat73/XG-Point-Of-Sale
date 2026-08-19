@@ -20,7 +20,7 @@ export default async function OrdersPage({
   let query = supabase
     .from("orders")
     .select(
-      "id, status, subtotal, total, customer_name, customer_phone, created_at, voided_at, void_reason, staff:staff_id(full_name), order_lines(id, sku, name, quantity, unit_price), payments(method, reference_number, amount), returns(order_line_id, quantity, refund_amount, reason, created_at), warranty_replacements(original_order_line_id, quantity), exchanges(original_order_line_id, quantity, new_sku, new_name, new_unit_price, price_difference)",
+      "id, status, subtotal, total, discount_type, discount_value, discount_amount, discount_reason, customer_name, customer_phone, customer_email, created_at, voided_at, void_reason, staff:staff_id(full_name), order_lines(id, sku, name, quantity, unit_price), payments(id, method, reference_number, reference_pending, amount, card_fee_amount, installment_months, installment_monthly_amount), returns(order_line_id, quantity, refund_amount, reason, created_at), warranty_replacements(original_order_line_id, quantity), exchanges(original_order_line_id, quantity, new_sku, new_name, new_unit_price, price_difference)",
       { count: "exact" },
     )
     // Orders is real sales history -- quotes share this table (status =

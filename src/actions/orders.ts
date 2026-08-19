@@ -422,3 +422,49 @@ export async function recordPayment(
   revalidatePath("/orders");
   return ok;
 }
+
+// Fills in a reference number that was deliberately skipped at sale time
+// (see submitSale's referencePending) -- no manager PIN needed, since this
+// only completes a previously-missing field and never changes an amount or
+// moves money. Any signed-in active staff can do it, not just the cashier
+// who rang up the original sale (the customer may come back to whoever's
+// on shift, not necessarily the same person).
+export async function resolvePaymentReference(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staff = await getCurrentStaff();
+  if (!staff) return { error: "You must be signed in." };
+
+  const paymentId = String(formData.get("paymentId") ?? "");
+  const referenceNumber = String(formData.get("referenceNumber") ?? "").trim();
+
+  if (!paymentId) return { error: "Missing payment id." };
+  if (!referenceNumber) return { error: "Enter the reference number." };
+
+  const supabase = await createClient();
+  const { data: payment } = await supabase
+    .from("payments")
+    .select("reference_pending")
+    .eq("id", paymentId)
+    .single();
+  if (!payment) return { error: "Payment not found." };
+  if (!payment.reference_pending) return { error: "This payment isn't waiting on a reference number." };
+
+  // payments has no update RLS policy (rows have never needed editing
+  // before this) -- goes through the service-role client rather than
+  // adding a broad "any signed-in staff can update any payment" policy for
+  // this one narrow, already-authorized-by-getCurrentStaff case.
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("payments")
+    .update({ reference_number: referenceNumber, reference_pending: false })
+    .eq("id", paymentId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/orders");
+  return ok;
+}

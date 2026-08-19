@@ -29,7 +29,7 @@ export default async function AnalyticsPage() {
   const { data: orders, count: ordersCount } = await supabase
     .from("orders")
     .select(
-      "id, status, total, created_at, customer_name, customer_phone, void_reason, voided_at, converted_order_id",
+      "id, status, total, created_at, customer_name, customer_phone, void_reason, voided_at, converted_order_id, discount_type, discount_value, discount_amount, discount_reason, discount_staff:discount_staff_id(full_name)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false })

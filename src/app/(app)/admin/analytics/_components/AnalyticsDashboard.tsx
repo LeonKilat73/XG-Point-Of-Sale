@@ -41,6 +41,11 @@ export type OrderRow = {
   void_reason: string | null;
   voided_at: string | null;
   converted_order_id: string | null;
+  discount_type: "percent" | "flat" | null;
+  discount_value: number | null;
+  discount_amount: number;
+  discount_reason: string | null;
+  discount_staff: { full_name: string } | { full_name: string }[] | null;
 };
 export type PaymentRow = { order_id: string; method: string; amount: number };
 export type LineRow = { order_id: string; sku: string; name: string; quantity: number; unit_price: number };
@@ -189,21 +194,30 @@ export function AnalyticsDashboard({
   }, [buckets, completed, period]);
 
   const paymentBreakdown = useMemo(() => {
-    // Attribute each order's *total* to its payment method, not the raw
-    // payments.amount -- a cash payment's amount is what the customer
+    // Attribute each order's *total* across its payment method(s), not the
+    // raw payments.amount -- a cash payment's amount is what the customer
     // tendered, which can exceed the total (change owed), so summing it
     // directly would overstate cash revenue by however much change was
-    // given back. One payment row per order today (credit sales/multiple
-    // installments land in a later phase), so first-match is exact.
-    const methodByOrder = new Map<string, string>();
+    // given back. A sale can now be split across multiple tenders (e.g.
+    // Cash + E-wallet), so the total is divided proportionally by each
+    // tender's share of what was actually applied to the order, rather
+    // than handed wholesale to whichever method happened to be recorded
+    // first.
+    const paymentsByOrder = new Map<string, { method: string; amount: number }[]>();
     for (const p of payments) {
-      if (!methodByOrder.has(p.order_id)) methodByOrder.set(p.order_id, p.method);
+      const list = paymentsByOrder.get(p.order_id) ?? [];
+      list.push(p);
+      paymentsByOrder.set(p.order_id, list);
     }
     const totals = new Map<string, number>();
     for (const o of completed) {
-      const method = methodByOrder.get(o.id);
-      if (!method) continue;
-      totals.set(method, (totals.get(method) ?? 0) + o.total);
+      const orderPayments = paymentsByOrder.get(o.id) ?? [];
+      const tendered = orderPayments.reduce((sum, p) => sum + p.amount, 0);
+      if (orderPayments.length === 0 || tendered <= 0) continue;
+      for (const p of orderPayments) {
+        const share = o.total * (p.amount / tendered);
+        totals.set(p.method, (totals.get(p.method) ?? 0) + share);
+      }
     }
     return [...totals.entries()]
       .map(([method, amount]) => ({
@@ -240,6 +254,12 @@ export function AnalyticsDashboard({
     [orders, windowStartDate, windowEndDate],
   );
   const voidsTotal = voids.reduce((sum, o) => sum + o.total, 0);
+
+  const discountsInWindow = useMemo(
+    () => completed.filter((o) => o.discount_amount > 0),
+    [completed],
+  );
+  const discountsTotal = discountsInWindow.reduce((sum, o) => sum + o.discount_amount, 0);
 
   const refundsInWindow = useMemo(
     () =>
@@ -583,6 +603,39 @@ export function AnalyticsDashboard({
                 </li>
               ))}
             </ul>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Discounts</h2>
+          {discountsInWindow.length === 0 ? (
+            <p className="text-sm text-on-surface-variant">No discounts applied in this period.</p>
+          ) : (
+            <>
+              <p className="mb-3 text-sm text-on-surface-variant">
+                Total discounted: <span className="font-medium text-on-surface">₱{discountsTotal.toFixed(2)}</span>
+              </p>
+              <ul className="space-y-2 text-sm">
+                {discountsInWindow.slice(0, 10).map((o) => {
+                  const staff = Array.isArray(o.discount_staff) ? o.discount_staff[0] : o.discount_staff;
+                  return (
+                    <li
+                      key={o.id}
+                      className="flex items-center justify-between border-b border-outline-variant/60 pb-2 last:border-0 last:pb-0"
+                    >
+                      <div>
+                        <p className="text-on-surface">{o.customer_name || "Walk-in customer"}</p>
+                        <p className="text-xs text-on-surface-variant">
+                          {new Date(o.created_at).toLocaleDateString()} · {staff?.full_name ?? "Unknown staff"}
+                          {o.discount_reason && ` — ${o.discount_reason}`}
+                        </p>
+                      </div>
+                      <span className="text-on-surface">-₱{o.discount_amount.toFixed(2)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
         </Card>
 

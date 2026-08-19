@@ -4,9 +4,17 @@
 
 ### Fixed
 - Connected Resend as a real email provider (Supabase → Authentication → SMTP Settings), replacing the default sender's low rate limit that was causing invite/reset emails to silently fail. Verified live: multiple resets in quick succession now go through cleanly instead of hitting "email rate limit exceeded." Note: Resend is still in sandbox mode (no verified domain yet), so real delivery is currently limited to the account's own registered address — inviting/resetting other staff won't actually land in their inbox until a domain is added.
+- On an order line, clicking Refund/Warranty replace/Exchange while another of those was already open left both showing at once. Now opening one always closes whichever was open.
 
 ### New: Exchange
 - Orders now has a third option alongside Refund and Warranty replace: **Exchange**, for when a defective item is swapped for a different (usually pricier) item instead of a straight refund or a free like-for-like replacement. Search for the new item, and the price difference is calculated automatically — the customer pays more, is owed money back on a downgrade, or nothing changes hands on an even swap. One record shows both the original and new item together on the order, instead of a disconnected refund + a brand-new sale.
+
+### New: Checkout — discounts, split payments, card fee & installments
+- **Discounts**: apply a % or ₱ discount at checkout for a special event/promo, with a reason and manager PIN (same authorization as void/refund). Shows on the receipt and in a new Discounts section on the Analytics page.
+- **Split payments**: a sale can now be paid with more than one method at once (e.g. Cash + E-wallet) instead of forcing everything through a single tender.
+- **Bypass reference number**: an e-wallet/bank transfer payment can be completed with "add the reference later" checked, instead of blocking the sale while a customer is still finding their screenshot. Orders shows a "Reference pending" prompt until it's filled in.
+- **Card processing fee**: a 3% fee is calculated automatically on any card payment and itemized separately on the receipt, on top of the sale total (not folded into it).
+- **Card installments**: a card payment can be split into 3, 6, or 12 months, with the even monthly breakdown shown on the receipt (no store-added interest).
 
 ## 2026-08-18
 
