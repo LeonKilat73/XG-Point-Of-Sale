@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-08-19
+
+### New: Exchange
+- Orders now has a third option alongside Refund and Warranty replace: **Exchange**, for when a defective item is swapped for a different (usually pricier) item instead of a straight refund or a free like-for-like replacement. Search for the new item, and the price difference is calculated automatically — the customer pays more, is owed money back on a downgrade, or nothing changes hands on an even swap. One record shows both the original and new item together on the order, instead of a disconnected refund + a brand-new sale.
+
 ## 2026-08-18
 
 ### Display & UX
