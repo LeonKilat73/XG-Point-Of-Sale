@@ -54,7 +54,15 @@ export async function fetchCatalog(): Promise<InventoryItem[]> {
   return data.items ?? [];
 }
 
-export type SaleLine = { itemId: string; quantity: number };
+// constituents overrides a bundle's own recipe with exactly what this
+// specific sale/return actually used (a part skipped, or swapped for a
+// different item) -- only meaningful when itemId is a bundle. Omitted ->
+// inventory falls back to the bundle's real recipe, unchanged from before.
+export type SaleLine = {
+  itemId: string;
+  quantity: number;
+  constituents?: { itemId: string; quantity: number }[];
+};
 
 // Atomic on inventory's side (fn_record_pos_sale) -- either every line posts
 // or none do. Throws with inventory's own error message on failure (e.g. an

@@ -20,6 +20,9 @@
 - Any order in Orders (not just one just rung up) can now show its receipt again, with a "Print" button that prints just the receipt — no menu, buttons, or the rest of the page in the printout.
 - Added "Email to" on the same receipt view — sends a copy to any email address via Resend. Note: Resend is still in sandbox mode (no verified domain yet), so real delivery is currently limited to the account's own registered address — emailing a real customer won't land in their inbox until a domain is added.
 
+### New: Customizable bundles
+- A bundle in the cart now shows its actual parts and lets you edit them before completing the sale — remove one that isn't needed (e.g. speaker foam when a car already has it built in), or swap one for a different item (e.g. no JBL in stock, sell MB Quart instead). The bundle's price to the customer never changes; only what actually gets taken out of inventory does. Refund, warranty replacement, and exchange on a customized bundle now correctly restock exactly what was actually sold, not the bundle's standard recipe.
+
 ## 2026-08-18
 
 ### Display & UX

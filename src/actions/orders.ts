@@ -121,7 +121,7 @@ export async function refundOrder(
 
   const { data: line } = await supabase
     .from("order_lines")
-    .select("item_id, quantity, unit_price")
+    .select("item_id, quantity, unit_price, is_bundle, bundle_constituents")
     .eq("id", orderLineId)
     .eq("order_id", orderId)
     .single();
@@ -135,8 +135,26 @@ export async function refundOrder(
   try {
     // orders.id doubles as the reference recordInventorySale sent as
     // externalReference at sale time -- there's no separate stored
-    // reference column to look up (see submitSale in checkout.ts).
-    await returnInventorySale(orderId, [{ itemId: line.item_id, quantity }], reason);
+    // reference column to look up (see submitSale in checkout.ts). A bundle
+    // line's stored bundle_constituents (the actual parts sold, not
+    // necessarily the recipe -- see checkout.ts) is replayed here so the
+    // return restocks exactly what was actually taken, never re-derived.
+    await returnInventorySale(
+      orderId,
+      [
+        {
+          itemId: line.item_id,
+          quantity,
+          constituents: line.is_bundle
+            ? ((line.bundle_constituents ?? []) as { itemId: string; quantity: number }[]).map((c) => ({
+                itemId: c.itemId,
+                quantity: c.quantity,
+              }))
+            : undefined,
+        },
+      ],
+      reason,
+    );
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not process the return in inventory." };
   }
@@ -193,7 +211,7 @@ export async function replaceOrder(
 
   const { data: line } = await supabase
     .from("order_lines")
-    .select("item_id, sku, name, quantity, unit_price")
+    .select("item_id, sku, name, quantity, unit_price, is_bundle, bundle_constituents")
     .eq("id", orderLineId)
     .eq("order_id", orderId)
     .single();
@@ -210,8 +228,22 @@ export async function replaceOrder(
   const inventoryReference = randomUUID();
 
   try {
+    // Like-for-like: a bundle replacement uses the exact same parts the
+    // customer originally got (line.bundle_constituents), not a fresh copy
+    // of the recipe -- see checkout.ts for why those can differ.
     await recordInventorySale(
-      [{ itemId: line.item_id, quantity }],
+      [
+        {
+          itemId: line.item_id,
+          quantity,
+          constituents: line.is_bundle
+            ? ((line.bundle_constituents ?? []) as { itemId: string; quantity: number }[]).map((c) => ({
+                itemId: c.itemId,
+                quantity: c.quantity,
+              }))
+            : undefined,
+        },
+      ],
       inventoryReference,
       `Warranty replacement for order ${orderId} (${staff.fullName})`,
     );
@@ -287,7 +319,7 @@ export async function exchangeOrder(
 
   const { data: line } = await supabase
     .from("order_lines")
-    .select("item_id, sku, name, quantity, unit_price")
+    .select("item_id, sku, name, quantity, unit_price, is_bundle, bundle_constituents")
     .eq("id", orderLineId)
     .eq("order_id", orderId)
     .single();
@@ -323,7 +355,22 @@ export async function exchangeOrder(
   // inventory exactly as a plain refund would leave it, and the cashier can
   // retry with a different new item or fall back to Refund.
   try {
-    await returnInventorySale(orderId, [{ itemId: line.item_id, quantity }], `Exchange: ${reason}`);
+    await returnInventorySale(
+      orderId,
+      [
+        {
+          itemId: line.item_id,
+          quantity,
+          constituents: line.is_bundle
+            ? ((line.bundle_constituents ?? []) as { itemId: string; quantity: number }[]).map((c) => ({
+                itemId: c.itemId,
+                quantity: c.quantity,
+              }))
+            : undefined,
+        },
+      ],
+      `Exchange: ${reason}`,
+    );
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not process the return side of the exchange." };
   }

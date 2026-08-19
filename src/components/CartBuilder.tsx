@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { lookupSku } from "@/actions/catalog";
 import type { InventoryItem } from "@/lib/inventory";
 import { matchesQuery } from "@/lib/catalogSearch";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
+
+export type BundleConstituent = { itemId: string; sku: string; name: string; quantity: number };
 
 export type CartLine = {
   itemId: string;
@@ -16,6 +18,13 @@ export type CartLine = {
   quantity: number;
   isBundle: boolean;
   stock: number;
+  // Only meaningful when isBundle -- what actually gets taken from stock
+  // for this line, seeded from the bundle's real recipe when added to the
+  // cart and freely editable from there (skip a part, swap it for a
+  // different item, or add one that isn't normally in the recipe). The
+  // bundle's own price never changes based on this -- only what's decremented
+  // from inventory does.
+  constituents?: BundleConstituent[];
 };
 
 const ALL_CATEGORIES = "All";
@@ -38,6 +47,7 @@ export function CartBuilder({
   const [lookupPending, setLookupPending] = useState(false);
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES);
   const [expandedDetail, setExpandedDetail] = useState<string | null>(null);
+  const [expandedBundle, setExpandedBundle] = useState<string | null>(null);
   const skuInputRef = useRef<HTMLInputElement>(null);
 
   const categories = useMemo(() => {
@@ -60,10 +70,14 @@ export function CartBuilder({
     unitPrice: number | null;
     isBundle: boolean;
     stock: number;
+    constituents?: BundleConstituent[];
   }) {
     onCartChange((prev) => {
       const existing = prev.find((line) => line.itemId === item.id);
       if (existing) {
+        // Bumping the quantity of an already-customized bundle line leaves
+        // its constituents alone -- re-seeding here would silently discard
+        // whatever the cashier already edited.
         return prev.map((line) =>
           line.itemId === item.id ? { ...line, quantity: line.quantity + 1 } : line,
         );
@@ -78,6 +92,7 @@ export function CartBuilder({
           quantity: 1,
           isBundle: item.isBundle,
           stock: item.stock,
+          constituents: item.isBundle ? (item.constituents ?? []).map((c) => ({ ...c })) : undefined,
         },
       ];
     });
@@ -126,6 +141,12 @@ export function CartBuilder({
 
   function removeLine(itemId: string) {
     onCartChange((prev) => prev.filter((line) => line.itemId !== itemId));
+  }
+
+  function updateConstituents(itemId: string, updater: (prev: BundleConstituent[]) => BundleConstituent[]) {
+    onCartChange((prev) =>
+      prev.map((line) => (line.itemId === itemId ? { ...line, constituents: updater(line.constituents ?? []) } : line)),
+    );
   }
 
   return (
@@ -230,40 +251,191 @@ export function CartBuilder({
             </thead>
             <tbody>
               {cart.map((line) => (
-                <tr key={line.itemId} className="border-t border-outline-variant/60">
-                  <td className="py-2">
-                    <p className="font-medium text-on-surface">{line.name}</p>
-                    <p className="font-mono text-xs text-on-surface-variant">
-                      {line.sku}
-                      {line.isBundle && " · bundle"}
-                    </p>
-                    {line.quantity > line.stock && (
-                      <p className="text-xs text-error">Only {line.stock} in stock</p>
-                    )}
-                  </td>
-                  <td className="py-2">
-                    <QuantityInput
-                      value={line.quantity}
-                      onCommit={(quantity) => updateQuantity(line.itemId, quantity)}
-                    />
-                  </td>
-                  <td className="py-2 text-right">₱{line.unitPrice.toFixed(2)}</td>
-                  <td className="py-2 text-right">₱{(line.unitPrice * line.quantity).toFixed(2)}</td>
-                  <td className="py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => removeLine(line.itemId)}
-                      className="text-xs text-error underline underline-offset-2"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={line.itemId}>
+                  <tr className="border-t border-outline-variant/60">
+                    <td className="py-2">
+                      <p className="font-medium text-on-surface">{line.name}</p>
+                      <p className="font-mono text-xs text-on-surface-variant">
+                        {line.sku}
+                        {line.isBundle && " · bundle"}
+                      </p>
+                      {line.quantity > line.stock && (
+                        <p className="text-xs text-error">Only {line.stock} in stock</p>
+                      )}
+                      {line.isBundle && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedBundle(expandedBundle === line.itemId ? null : line.itemId)}
+                          className="mt-0.5 text-xs text-primary underline underline-offset-2"
+                        >
+                          {expandedBundle === line.itemId
+                            ? "Hide parts"
+                            : `${(line.constituents ?? []).length} part(s) — edit`}
+                        </button>
+                      )}
+                    </td>
+                    <td className="py-2">
+                      <QuantityInput
+                        value={line.quantity}
+                        onCommit={(quantity) => updateQuantity(line.itemId, quantity)}
+                      />
+                    </td>
+                    <td className="py-2 text-right">₱{line.unitPrice.toFixed(2)}</td>
+                    <td className="py-2 text-right">₱{(line.unitPrice * line.quantity).toFixed(2)}</td>
+                    <td className="py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => removeLine(line.itemId)}
+                        className="text-xs text-error underline underline-offset-2"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                  {line.isBundle && expandedBundle === line.itemId && (
+                    <tr className="border-t border-outline-variant/60 bg-surface-container-high/40">
+                      <td colSpan={5} className="py-3">
+                        <BundleConstituentsEditor
+                          catalog={catalog}
+                          constituents={line.constituents ?? []}
+                          onChange={(updater) => updateConstituents(line.itemId, updater)}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
         )}
       </Card>
+    </div>
+  );
+}
+
+// Lets a cashier edit what a bundle line actually decrements from stock --
+// remove a part the customer doesn't need (built into the car already),
+// swap one for a different catalog item (out of stock, sold an alternate
+// instead), or add one that isn't normally in the recipe. The bundle's own
+// price is untouched by any of this; see submitSale in checkout.ts for how
+// this list becomes the actual stock_movements at sale time instead of the
+// recipe. editingSlot tracks which row's catalog search is open: a
+// constituent's array index to swap that row, "add" to append a new one,
+// or null when no search is open.
+function BundleConstituentsEditor({
+  catalog,
+  constituents,
+  onChange,
+}: {
+  catalog: InventoryItem[];
+  constituents: BundleConstituent[];
+  onChange: (updater: (prev: BundleConstituent[]) => BundleConstituent[]) => void;
+}) {
+  const [editingSlot, setEditingSlot] = useState<number | "add" | null>(null);
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? catalog.filter((item) => !item.isBundle && (item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q))).slice(0, 8)
+    : [];
+
+  function closeSearch() {
+    setEditingSlot(null);
+    setQuery("");
+  }
+
+  function pick(item: InventoryItem) {
+    const picked: BundleConstituent = { itemId: item.id, sku: item.sku, name: item.name, quantity: 1 };
+    if (editingSlot === "add") {
+      onChange((prev) => [...prev, picked]);
+    } else if (typeof editingSlot === "number") {
+      const keepQuantity = constituents[editingSlot]?.quantity ?? 1;
+      onChange((prev) => prev.map((c, i) => (i === editingSlot ? { ...picked, quantity: keepQuantity } : c)));
+    }
+    closeSearch();
+  }
+
+  function removeAt(index: number) {
+    onChange((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="space-y-2">
+      {constituents.length === 0 ? (
+        <p className="text-xs text-on-surface-variant">No parts in this bundle line.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {constituents.map((c, i) => (
+            <li key={i} className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-on-surface">
+                {c.quantity} × {c.name} <span className="font-mono text-on-surface-variant">({c.sku})</span>
+              </span>
+              <span className="flex shrink-0 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingSlot(i);
+                    setQuery("");
+                  }}
+                  className="text-primary underline underline-offset-2"
+                >
+                  Swap
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeAt(i)}
+                  className="text-error underline underline-offset-2"
+                >
+                  Remove
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {editingSlot === null ? (
+        <button
+          type="button"
+          onClick={() => {
+            setEditingSlot("add");
+            setQuery("");
+          }}
+          className="text-xs text-primary underline underline-offset-2"
+        >
+          + Add item to bundle
+        </button>
+      ) : (
+        <div className="rounded-lg border border-outline-variant bg-surface p-2">
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={editingSlot === "add" ? "Search item to add…" : "Search replacement item…"}
+              className="flex-1 rounded-md border border-outline bg-surface px-2 py-1.5 text-xs text-on-surface outline-none focus:border-primary"
+            />
+            <button type="button" onClick={closeSearch} className="text-xs text-on-surface-variant underline underline-offset-2">
+              Cancel
+            </button>
+          </div>
+          {matches.length > 0 && (
+            <div className="mt-1.5 space-y-1">
+              {matches.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => pick(item)}
+                  className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1 text-left text-xs hover:bg-surface-container-high"
+                >
+                  <span className="truncate text-on-surface">{item.name}</span>
+                  <span className="shrink-0 font-mono text-on-surface-variant">{item.sku}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -93,7 +93,17 @@ export async function submitSale(
 
   try {
     await recordInventorySale(
-      cart.map((line) => ({ itemId: line.itemId, quantity: line.quantity })),
+      cart.map((line) => ({
+        itemId: line.itemId,
+        quantity: line.quantity,
+        // A bundle line always carries its as-configured parts list (even
+        // when it's just an unedited copy of the recipe) -- see
+        // BundleConstituentsEditor in CartBuilder.tsx. Inventory decrements
+        // exactly this instead of re-deriving the bundle's own recipe.
+        constituents: line.isBundle
+          ? (line.constituents ?? []).map((c) => ({ itemId: c.itemId, quantity: c.quantity }))
+          : undefined,
+      })),
       orderId,
       `POS order ${orderId} (${staff.fullName})`,
     );
@@ -131,6 +141,12 @@ export async function submitSale(
       unit_price: line.unitPrice,
       quantity: line.quantity,
       line_total: line.unitPrice * line.quantity,
+      is_bundle: line.isBundle,
+      // Persisted so a later refund/warranty-replace/exchange on this line
+      // can replay exactly what was actually taken from stock, instead of
+      // re-deriving the bundle's recipe (wrong the moment a part was
+      // skipped or swapped -- see orders.ts).
+      bundle_constituents: line.isBundle ? line.constituents ?? [] : null,
     })),
   );
   if (linesError) {
