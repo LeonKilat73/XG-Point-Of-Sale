@@ -84,9 +84,10 @@ export function OrdersList({
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [voiding, setVoiding] = useState<string | null>(null);
-  const [refundingLine, setRefundingLine] = useState<string | null>(null);
-  const [replacingLine, setReplacingLine] = useState<string | null>(null);
-  const [exchangingLine, setExchangingLine] = useState<string | null>(null);
+  const [lineAction, setLineAction] = useState<{
+    lineId: string;
+    kind: "refund" | "warranty" | "exchange";
+  } | null>(null);
   const [payingOrder, setPayingOrder] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const hasDateFilter = Boolean(dateFrom || dateTo);
@@ -261,7 +262,11 @@ export function OrdersList({
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        setRefundingLine(refundingLine === line.id ? null : line.id)
+                                        setLineAction(
+                                          lineAction?.lineId === line.id && lineAction.kind === "refund"
+                                            ? null
+                                            : { lineId: line.id, kind: "refund" },
+                                        )
                                       }
                                       className="text-xs text-error underline underline-offset-2"
                                     >
@@ -270,7 +275,11 @@ export function OrdersList({
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        setReplacingLine(replacingLine === line.id ? null : line.id)
+                                        setLineAction(
+                                          lineAction?.lineId === line.id && lineAction.kind === "warranty"
+                                            ? null
+                                            : { lineId: line.id, kind: "warranty" },
+                                        )
                                       }
                                       className="text-xs text-on-surface-variant underline underline-offset-2"
                                     >
@@ -279,7 +288,11 @@ export function OrdersList({
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        setExchangingLine(exchangingLine === line.id ? null : line.id)
+                                        setLineAction(
+                                          lineAction?.lineId === line.id && lineAction.kind === "exchange"
+                                            ? null
+                                            : { lineId: line.id, kind: "exchange" },
+                                        )
                                       }
                                       className="text-xs text-primary underline underline-offset-2"
                                     >
@@ -302,26 +315,26 @@ export function OrdersList({
                                   ))}
                                 </ul>
                               )}
-                              {refundingLine === line.id && (
+                              {lineAction?.lineId === line.id && lineAction.kind === "refund" && (
                                 <RefundForm
                                   orderId={order.id}
                                   orderLineId={line.id}
                                   maxQuantity={remaining}
                                   unitPrice={line.unit_price}
-                                  onDone={() => setRefundingLine(null)}
+                                  onDone={() => setLineAction(null)}
                                 />
                               )}
-                              {replacingLine === line.id && (
+                              {lineAction?.lineId === line.id && lineAction.kind === "warranty" && (
                                 <WarrantyForm
                                   orderId={order.id}
                                   orderLineId={line.id}
                                   maxQuantity={remaining}
                                   defaultCustomerName={order.customer_name}
                                   defaultCustomerPhone={order.customer_phone}
-                                  onDone={() => setReplacingLine(null)}
+                                  onDone={() => setLineAction(null)}
                                 />
                               )}
-                              {exchangingLine === line.id && (
+                              {lineAction?.lineId === line.id && lineAction.kind === "exchange" && (
                                 <ExchangeForm
                                   orderId={order.id}
                                   orderLineId={line.id}
@@ -330,7 +343,7 @@ export function OrdersList({
                                   catalog={catalog}
                                   defaultCustomerName={order.customer_name}
                                   defaultCustomerPhone={order.customer_phone}
-                                  onDone={() => setExchangingLine(null)}
+                                  onDone={() => setLineAction(null)}
                                 />
                               )}
                             </li>
