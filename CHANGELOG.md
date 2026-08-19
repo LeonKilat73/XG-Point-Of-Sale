@@ -2,6 +2,9 @@
 
 ## 2026-08-19
 
+### Fixed
+- Connected Resend as a real email provider (Supabase → Authentication → SMTP Settings), replacing the default sender's low rate limit that was causing invite/reset emails to silently fail. Verified live: multiple resets in quick succession now go through cleanly instead of hitting "email rate limit exceeded." Note: Resend is still in sandbox mode (no verified domain yet), so real delivery is currently limited to the account's own registered address — inviting/resetting other staff won't actually land in their inbox until a domain is added.
+
 ### New: Exchange
 - Orders now has a third option alongside Refund and Warranty replace: **Exchange**, for when a defective item is swapped for a different (usually pricier) item instead of a straight refund or a free like-for-like replacement. Search for the new item, and the price difference is calculated automatically — the customer pays more, is owed money back on a downgrade, or nothing changes hands on an even swap. One record shows both the original and new item together on the order, instead of a disconnected refund + a brand-new sale.
 
