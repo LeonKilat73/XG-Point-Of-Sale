@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-08-20
+
+### New: Installer / Technician on checkout
+- Checkout now has an optional "Installer / Technician" field (who physically did the install, separate from the cashier who rang up the sale) — matches the "Installer" field already used on the shop's QuickBooks sales receipts. Shown in Orders for internal reference; not printed on the customer receipt, same convention as QuickBooks.
+
 ## 2026-08-19
 
 ### Fixed

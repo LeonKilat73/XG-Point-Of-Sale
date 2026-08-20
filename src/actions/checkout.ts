@@ -41,6 +41,7 @@ export async function submitSale(
   customer?: { name?: string; phone?: string; email?: string },
   allowPartialPayment?: boolean,
   discount?: DiscountInput,
+  installerName?: string,
 ): Promise<SubmitResult> {
   const staff = await getCurrentStaff();
   if (!staff) return { error: "You must be signed in." };
@@ -118,6 +119,7 @@ export async function submitSale(
     customer_name: customer?.name?.trim() || null,
     customer_phone: customer?.phone?.trim() || null,
     customer_email: customer?.email?.trim() || null,
+    installer_name: installerName?.trim() || null,
   });
   if (orderError) {
     return { error: `Sale was recorded in inventory but failed to save locally: ${orderError.message}` };

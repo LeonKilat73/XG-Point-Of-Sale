@@ -51,6 +51,7 @@ export type OrderRow = {
   customer_name: string | null;
   customer_phone: string | null;
   customer_email: string | null;
+  installer_name: string | null;
   created_at: string;
   voided_at: string | null;
   void_reason: string | null;
@@ -230,6 +231,9 @@ export function OrdersList({
                     <p className="mt-1 text-sm text-on-surface-variant">
                       {new Date(order.created_at).toLocaleString()} · {staff?.full_name ?? "Unknown staff"}
                     </p>
+                    {order.installer_name && (
+                      <p className="mt-1 text-sm text-on-surface-variant">Installer: {order.installer_name}</p>
+                    )}
                     {order.payments.map((payment) => (
                       <p key={payment.id} className="mt-1 text-sm text-on-surface-variant">
                         {METHOD_LABELS[payment.method] ?? payment.method} · ₱{payment.amount.toFixed(2)}

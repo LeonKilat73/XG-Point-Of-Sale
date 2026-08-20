@@ -77,6 +77,7 @@ export function Checkout({
   const [customerName, setCustomerName] = useState(initialCustomerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(initialCustomerPhone ?? "");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [installerName, setInstallerName] = useState("");
   const [creditSale, setCreditSale] = useState(false);
   const [tenders, setTenders] = useState<TenderDraft[]>([newTender("")]);
   const [discountEnabled, setDiscountEnabled] = useState(false);
@@ -163,6 +164,7 @@ export function Checkout({
       { name: customerName, phone: customerPhone, email: customerEmail },
       creditSale,
       discountInput,
+      installerName.trim() || undefined,
     );
     setSubmitting(false);
 
@@ -203,6 +205,7 @@ export function Checkout({
     setCustomerName("");
     setCustomerPhone("");
     setCustomerEmail("");
+    setInstallerName("");
     setTenders([newTender("")]);
     setCreditSale(false);
     setDiscountEnabled(false);
@@ -280,6 +283,17 @@ export function Checkout({
             onChange={(e) => setCustomerEmail(e.target.value)}
           />
         </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 text-sm font-medium text-on-surface-variant">Installation</h2>
+        <TextField
+          label="Installer / Technician (optional)"
+          value={installerName}
+          onChange={(e) => setInstallerName(e.target.value)}
+          placeholder="Who installed this"
+          className="max-w-sm"
+        />
       </Card>
 
       <div className="grid gap-6 md:grid-cols-[1fr_360px]">
