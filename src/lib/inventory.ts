@@ -17,6 +17,10 @@ export type InventoryItem = {
   isBundle: boolean;
   stock: number;
   reorderThreshold: number;
+  // Made-to-order items: inventory still logs the sale even at 0 stock
+  // instead of rejecting it, so the cart's "only X in stock" warning
+  // shouldn't fire for these -- see CartBuilder.
+  allowBackorder: boolean;
   constituents?: { itemId: string; sku: string; name: string; quantity: number }[];
 };
 

@@ -2,6 +2,9 @@
 
 ## 2026-08-20
 
+### New: Made-to-order items no longer block checkout
+- Items inventory marks as "allow selling past zero stock" (made-to-order goods) no longer show the "only X in stock" error in the cart — shows "Made to order" instead. The actual stock/oversell enforcement lives entirely on inventory's side (`fn_record_pos_sale`); this is just the cart no longer flagging something that isn't actually a problem. Verified with a real checkout end-to-end against a made-to-order test item, then voided.
+
 ### New: Installer / Technician on checkout
 - Checkout now has an optional "Installer / Technician" field (who physically did the install, separate from the cashier who rang up the sale) — matches the "Installer" field already used on the shop's QuickBooks sales receipts. Shown in Orders for internal reference; not printed on the customer receipt, same convention as QuickBooks.
 

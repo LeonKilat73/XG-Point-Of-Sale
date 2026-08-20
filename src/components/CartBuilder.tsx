@@ -18,6 +18,9 @@ export type CartLine = {
   quantity: number;
   isBundle: boolean;
   stock: number;
+  // Made-to-order items -- inventory allows the sale through even at 0
+  // stock, so the "only X in stock" warning below shouldn't fire for these.
+  allowBackorder: boolean;
   // Only meaningful when isBundle -- what actually gets taken from stock
   // for this line, seeded from the bundle's real recipe when added to the
   // cart and freely editable from there (skip a part, swap it for a
@@ -70,6 +73,7 @@ export function CartBuilder({
     unitPrice: number | null;
     isBundle: boolean;
     stock: number;
+    allowBackorder: boolean;
     constituents?: BundleConstituent[];
   }) {
     onCartChange((prev) => {
@@ -92,6 +96,7 @@ export function CartBuilder({
           quantity: 1,
           isBundle: item.isBundle,
           stock: item.stock,
+          allowBackorder: item.allowBackorder,
           constituents: item.isBundle ? (item.constituents ?? []).map((c) => ({ ...c })) : undefined,
         },
       ];
@@ -259,8 +264,11 @@ export function CartBuilder({
                         {line.sku}
                         {line.isBundle && " · bundle"}
                       </p>
-                      {line.quantity > line.stock && (
+                      {line.quantity > line.stock && !line.allowBackorder && (
                         <p className="text-xs text-error">Only {line.stock} in stock</p>
+                      )}
+                      {line.quantity > line.stock && line.allowBackorder && (
+                        <p className="text-xs text-on-surface-variant">Made to order</p>
                       )}
                       {line.isBundle && (
                         <button

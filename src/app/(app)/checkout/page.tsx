@@ -59,6 +59,7 @@ export default async function CheckoutPage({
           quantity: line.quantity,
           isBundle: current.isBundle,
           stock: current.stock,
+          allowBackorder: current.allowBackorder,
         });
       }
 
