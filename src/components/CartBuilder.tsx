@@ -264,6 +264,9 @@ export function CartBuilder({
                         {line.sku}
                         {line.isBundle && " · bundle"}
                       </p>
+                      {line.unitPrice <= 0 && (
+                        <p className="text-xs text-error">No price set for this item. Check with a manager before selling.</p>
+                      )}
                       {line.quantity > line.stock && !line.allowBackorder && (
                         <p className="text-xs text-error">Only {line.stock} in stock</p>
                       )}
